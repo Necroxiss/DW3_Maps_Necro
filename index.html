@@ -1,0 +1,2545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digimon World 3 - Circuit Cartographer (Digimon Server Theme)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+      background-color: #060913;
+      color: #e2e8f0;
+    }
+    
+    /* DIGIMON SERVER THEME (Dark Blueish, Brownish, Cyber Grid) */
+    .server-grid {
+      background-color: #070a14;
+      background-size: 32px 32px, 32px 32px, 128px 128px, 128px 128px;
+      background-image: 
+        linear-gradient(to right, rgba(14, 165, 233, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(14, 165, 233, 0.08) 1px, transparent 1px),
+        linear-gradient(to right, rgba(217, 119, 6, 0.14) 1.5px, transparent 1.5px),
+        linear-gradient(to bottom, rgba(180, 83, 9, 0.14) 1.5px, transparent 1.5px);
+    }
+    .circuit-glow-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 40%, rgba(14, 165, 233, 0.07) 0%, rgba(180, 83, 9, 0.05) 50%, transparent 80%);
+    }
+
+    /* ELECTRIC CYAN CIRCUIT WIRES */
+    .edge-line {
+      stroke: #38bdf8;
+      stroke-width: 2.4;
+      stroke-linecap: square;
+      fill: none;
+      filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.7));
+      transition: stroke 0.12s ease, stroke-width 0.12s ease;
+    }
+    .edge-line:hover {
+      stroke: #f43f5e;
+      stroke-width: 4;
+      filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.9));
+      cursor: pointer;
+    }
+    .edge-line.selected-edge {
+      stroke: #facc15;
+      stroke-width: 3.5;
+      filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.95));
+    }
+
+    /* Arrowhead interactive drag handle */
+    .arrow-drag-handle {
+      fill: #38bdf8;
+      stroke: #070a14;
+      stroke-width: 1.5;
+      cursor: grab;
+      filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.9));
+      transition: transform 0.15s ease, fill 0.15s ease;
+    }
+    .arrow-drag-handle:hover {
+      fill: #facc15;
+      transform: scale(1.4);
+      cursor: grab;
+    }
+    .arrow-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    /* Node box */
+    .map-node {
+      cursor: grab;
+      background: #ffffff;
+      border: 2px solid #0f172a;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15);
+      transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+    }
+    .map-node:active {
+      cursor: grabbing;
+    }
+    .map-node.selected {
+      outline: 3px solid #c084fc;
+      border-color: #c084fc;
+      box-shadow: 0 0 20px rgba(192, 132, 252, 0.65), 0 4px 12px rgba(0,0,0,0.6);
+    }
+    .map-node.deadend-node {
+      background: #090d16 !important;
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }
+
+    /* PROMINENT, BIGGER PHOTO BADGE ON ROOM */
+    .room-photo-badge {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 84px;
+      height: 56px;
+      border-radius: 6px;
+      border: 1.5px solid #0f172a;
+      overflow: hidden;
+      background: #020617;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(56, 189, 248, 0.4);
+      cursor: zoom-in;
+      z-index: 22;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, width 0.2s ease, height 0.2s ease, z-index 0.2s ease;
+    }
+    .room-photo-badge:hover {
+      width: 220px;
+      height: 148px;
+      z-index: 60;
+      transform: translateX(-50%) translateY(-10px);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.95), 0 0 0 2px #38bdf8;
+    }
+    .room-photo-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+    .photo-tag {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #38bdf8;
+      font-size: 8px;
+      font-family: monospace;
+      padding: 1px 3px;
+      border-radius: 3px;
+      pointer-events: none;
+    }
+
+    /* AUTO-RESIZE TEXT CONTAINER INSIDE BOX */
+    .node-text-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 5px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .node-title {
+      width: 100%;
+      line-height: 1.15;
+      font-weight: 700;
+      color: #020617;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      text-align: center;
+      transition: font-size 0.08s ease;
+    }
+    .node-subtext {
+      width: 100%;
+      line-height: 1.1;
+      font-weight: 700;
+      color: #1e1b4b;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      text-align: center;
+      margin-top: 1px;
+      transition: font-size 0.08s ease;
+    }
+
+    /* Interactive Port Dots on Room Borders */
+    .port-wrapper {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 25;
+    }
+    .port-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 9999px;
+      pointer-events: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .port-dot.connected {
+      background-color: #a855f7;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.9);
+    }
+    .port-dot.available {
+      background-color: #070a14;
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 5px rgba(56, 189, 248, 0.7);
+    }
+    .port-wrapper:hover .port-dot.available {
+      transform: scale(1.4);
+      background-color: #38bdf8;
+      border-color: #ffffff;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 1);
+    }
+    .port-wrapper:hover .port-dot.connected {
+      transform: scale(1.4);
+      border-color: #facc15;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 1);
+    }
+    .port-dot.active-port {
+      outline: 2px solid #facc15;
+      outline-offset: 2px;
+      animation: pulse-ring 1.3s infinite;
+    }
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.8); }
+      70% { box-shadow: 0 0 0 7px rgba(250, 204, 21, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+    }
+
+    /* Edge labels */
+    .edge-label {
+      font-size: 8.5px;
+      font-family: monospace;
+      font-weight: 700;
+      fill: #38bdf8;
+      paint-order: stroke;
+      stroke: #070a14;
+      stroke-width: 3.5px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* 10 Color Swatches */
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 9999px;
+      cursor: pointer;
+      border: 2px solid #334155;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+    .color-swatch:hover {
+      transform: scale(1.22);
+      border-color: #ffffff;
+    }
+    .color-swatch.active-swatch {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
+      border-color: #ffffff;
+    }
+
+    /* Dead End Floating Note Callout */
+    .deadend-note-badge {
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.7));
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+  </style>
+  <script src="map_data.js"></script>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+  <!-- Header: Digimon Cyber Console -->
+    <!-- Header: Digimon Cyber Console -->
+  <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0 shadow-lg z-30 backdrop-blur font-mono">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-cyan-600/30 border border-cyan-400 flex items-center justify-center font-bold text-cyan-300 text-base shadow-sm">
+        👾
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xs font-bold tracking-wider text-cyan-400 uppercase">
+            DW3 Circuit Cartographer
+          </h1>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-600/50 text-amber-300 font-bold">
+            Server 01
+          </span>
+          <!-- Viewer Badge -->
+          <div id="viewer-mode-badge" class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/60 text-[10px] text-cyan-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>👁️ View-Only Mode</span>
+          </div>
+          <!-- Editor Badge -->
+          <div id="editor-mode-badge" class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/60 text-[10px] text-amber-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            <span>⚡ Editor Mode (Owner)</span>
+          </div>
+          <!-- Save Status Badge -->
+          <div id="save-status-badge" class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-600/50 text-[10px] text-emerald-300 transition-all">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span id="save-status-text">Draft Auto-Saved</span>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-400" id="header-desc">
+          Interactive Circuit Network &bull; Pan & Zoom &bull; Click Rooms to Inspect Notes & Screenshots
+        </p>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="flex items-center gap-2 text-xs">
+      <!-- Editor-Only Controls -->
+      <div id="editor-controls-group" class="hidden items-center gap-1.5">
+        <button id="btn-undo" title="Undo last action (Ctrl+Z)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
+          <span>↩️</span> Undo
+        </button>
+        <button id="btn-redo" title="Redo action (Ctrl+Y)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
+          <span>↪️</span> Redo
+        </button>
+        <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+        <button id="btn-tidy" title="Align to grid & straight plumb lines without any box collisions" class="px-2 py-1 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 rounded font-medium flex items-center gap-1 transition shadow-sm border border-cyan-500/50 text-[11px]">
+          <span>⚡</span> Fix Layout
+        </button>
+        <button id="btn-sample" title="Reset to sample map" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded transition text-[11px]">
+          Reset
+        </button>
+        <button id="btn-clear" title="Clear canvas" class="px-2 py-1 bg-slate-800 hover:bg-red-950/80 hover:text-red-300 text-slate-400 border border-slate-700 rounded transition text-[11px]">
+          Clear
+        </button>
+        <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+        <button id="btn-publish-map" title="Save this map as the live version friends see" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold flex items-center gap-1.5 transition shadow-sm border border-emerald-500/60 text-[11px]">
+          <span>🚀</span> Save Live Map
+        </button>
+        <button id="btn-share-link" title="Copy shareable link with map data for friends" class="px-2 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded font-medium flex items-center gap-1 transition shadow-sm border border-blue-500/60 text-[11px]">
+          <span>🔗</span> Share Link
+        </button>
+        <button id="btn-switch-viewer" title="Preview as View-Only (Friend's perspective)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded transition text-[11px]">
+          👁️ Preview View-Only
+        </button>
+      </div>
+
+      <!-- Common Controls (Available in both modes) -->
+      <button id="btn-fit" title="Fit view to all rooms" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
+        <span>🔍</span> Fit View
+      </button>
+      <button id="btn-export-json" title="Download map JSON backup" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px]">
+        💾 Export
+      </button>
+      <button id="btn-import-json" title="Import map JSON file" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px] flex items-center gap-1">
+        <span>📂</span> Import
+      </button>
+      <input type="file" id="import-json-file" accept=".json" class="hidden" />
+      
+      <!-- Unlock Editor Button (Visible in Viewer Mode) -->
+      <button id="btn-unlock-editor" title="Enter Admin Password to Edit Maps" class="px-2 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 text-amber-300 rounded font-bold flex items-center gap-1.5 transition text-[11px]">
+        <span>🔐</span> Editor Login
+      </button>
+
+      <!-- Lock / Logout Button -->
+      <button id="btn-lock-session" title="Lock access & return to password screen" class="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 rounded transition text-xs">
+        🔒
+      </button>
+    </div>
+  </header>
+
+  <!-- Work Area -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- Left Palette -->
+    <aside id="sidebar-aside" class="w-68 bg-slate-900/95 border-r border-slate-800 p-3 flex flex-col gap-3 shrink-0 overflow-y-auto text-xs z-20">
+      
+      <!-- Instructions & Shortcuts Card -->
+      <div class="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-800/60 text-cyan-200 text-[11px] space-y-1.5 shadow-xs">
+        <div class="font-bold flex items-center gap-1.5 text-cyan-300 font-mono">
+          <span>⚡</span> Server Controls:
+        </div>
+        <ul class="text-[10px] space-y-1 text-cyan-100/90 font-mono">
+          <li>&bull; <strong>Photo Badge</strong> : Big & Hover to Expand!</li>
+          <li>&bull; <strong>Auto-Fit Words</strong> : Fits box cleanly</li>
+          <li>&bull; <strong>Drag Arrowhead</strong> : Change Entrance</li>
+          <li>&bull; <strong>10 Colors</strong> : Pick bright room theme</li>
+          <li>&bull; <kbd class="px-1 bg-slate-800 border border-slate-700 rounded">Ctrl+Z</kbd> : Undo &bull; <kbd class="px-1 bg-slate-800 border border-slate-700 rounded">Del</kbd> : Delete</li>
+          <li>&bull; <kbd class="px-1 bg-slate-800 border border-slate-700 rounded">Ctrl+V</kbd> : Paste Photo</li>
+        </ul>
+      </div>
+
+      <!-- Add Room Palette -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="font-bold uppercase tracking-wider text-[11px] text-slate-400 font-mono">Add Room (1-7)</span>
+        </div>
+        <div class="space-y-1">
+          <button data-layout="1" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 border border-slate-700/80 hover:border-cyan-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-emerald-950 border border-emerald-500/60 text-emerald-300 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">1</span>
+            <div class="truncate text-slate-200 group-hover:text-cyan-200"><span class="font-bold">Entrance</span> (Exit Down)</div>
+          </button>
+          <button data-layout="2" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 border border-slate-700/80 hover:border-cyan-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-emerald-950 border border-emerald-500/60 text-emerald-300 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">2</span>
+            <div class="truncate text-slate-200 group-hover:text-cyan-200"><span class="font-bold">Entrance</span> (Exit Up)</div>
+          </button>
+          <button data-layout="3" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 border border-slate-700/80 hover:border-cyan-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-blue-950 border border-blue-500/60 text-blue-300 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">3</span>
+            <div class="truncate text-slate-200 group-hover:text-cyan-200"><span class="font-bold">Straight Corridor</span></div>
+          </button>
+          <button data-layout="4" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 border border-slate-700/80 hover:border-cyan-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-indigo-950 border border-indigo-500/60 text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">4</span>
+            <div class="truncate text-slate-200 group-hover:text-cyan-200"><span class="font-bold">3-Way A</span> (Top, Lower-L, Lower-R)</div>
+          </button>
+          <button data-layout="5" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 border border-slate-700/80 hover:border-cyan-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-indigo-950 border border-indigo-500/60 text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">5</span>
+            <div class="truncate text-slate-200 group-hover:text-cyan-200"><span class="font-bold">3-Way B</span> (Bottom, Upper-L, Upper-R)</div>
+          </button>
+          <button data-layout="6" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-amber-950/60 border border-slate-700/80 hover:border-amber-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-black border border-amber-600/60 text-amber-400 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">6</span>
+            <div class="truncate text-slate-200 group-hover:text-amber-200"><span class="font-bold">Dead End</span> (From Bottom)</div>
+          </button>
+          <button data-layout="7" class="palette-item w-full text-left p-1.5 rounded bg-slate-800/80 hover:bg-amber-950/60 border border-slate-700/80 hover:border-amber-500/60 transition flex items-center gap-2 shadow-xs group">
+            <span class="w-5 h-5 rounded bg-black border border-amber-600/60 text-amber-400 font-bold flex items-center justify-center text-[10px] shrink-0 font-mono">7</span>
+            <div class="truncate text-slate-200 group-hover:text-amber-200"><span class="font-bold">Dead End</span> (From Top)</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-auto pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between font-mono">
+        <span id="stat-count">0 rooms</span>
+        <span>Auto-saved</span>
+      </div>
+    </aside>
+
+    <!-- Canvas Viewport -->
+    <div id="viewport" class="flex-1 relative overflow-hidden server-grid cursor-crosshair">
+      <div class="circuit-glow-overlay"></div>
+      <div id="canvas-world" class="absolute origin-top-left" style="transform: translate(140px, 40px) scale(0.85);">
+        <svg id="svg-edges" class="absolute inset-0 pointer-events-none" style="overflow: visible; width: 1px; height: 1px;">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8" />
+            </marker>
+            <marker id="arrow-selected" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#facc15" />
+            </marker>
+          </defs>
+          <g id="edges-group" class="pointer-events-auto"></g>
+          <g id="handles-group" class="pointer-events-auto"></g>
+          <g id="labels-group" class="pointer-events-none"></g>
+          <!-- Dynamic line during dragging -->
+          <line id="drag-line" class="hidden" stroke="#facc15" stroke-width="2.5" stroke-dasharray="4" filter="drop-shadow(0 0 6px #facc15)" />
+        </svg>
+        <div id="nodes-container" class="relative"></div>
+      </div>
+
+      <!-- Viewport HUD Overlay -->
+      <div class="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-lg text-xs text-slate-300 flex items-center gap-3 shadow-xl backdrop-blur z-20 font-mono">
+        <span id="zoom-readout" class="text-cyan-400 font-bold">85%</span>
+        <button id="btn-zoom-in" class="hover:text-white font-bold px-1 text-sm">+</button>
+        <button id="btn-zoom-out" class="hover:text-white font-bold px-1 text-sm">−</button>
+        <button id="btn-zoom-reset" class="hover:text-white px-1 text-[11px] underline">Reset</button>
+      </div>
+
+      <!-- Room Inspector & 1-Click 7-Branch Engine -->
+      <div id="inspector" class="absolute top-4 right-4 w-92 bg-slate-900/95 border border-slate-700 rounded-xl p-3.5 shadow-2xl backdrop-blur hidden z-30 flex-col gap-3 text-xs max-h-[92vh] overflow-y-auto">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 shrink-0">
+          <div class="font-bold text-cyan-300 flex items-center gap-1.5 font-mono">
+            <span>⚙️</span> Room Inspector
+          </div>
+          <button id="inspector-close" class="text-slate-400 hover:text-slate-200 font-mono text-sm px-1">&times;</button>
+        </div>
+
+        <!-- 10 BRIGHT COLOR PALETTE PICKER -->
+        <div class="space-y-1 shrink-0 pb-1 border-b border-slate-800">
+          <label class="text-[10px] uppercase text-cyan-400 font-semibold font-mono flex items-center justify-between">
+            <span>Room Color (10 Bright Palette)</span>
+            <span id="color-name-display" class="text-slate-400 font-normal">Pure White</span>
+          </label>
+          <div id="color-palette-container" class="flex items-center justify-between gap-1 pt-1">
+            <!-- Dynamically populated with 10 swatches -->
+          </div>
+        </div>
+
+        <!-- Room Details -->
+        <div class="space-y-2 shrink-0">
+          <div>
+            <label class="text-[10px] uppercase text-slate-400 font-semibold block mb-1 font-mono">Room Layout</label>
+            <select id="room-layout-select" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 font-medium focus:outline-none focus:border-cyan-500">
+              <option value="1">1. Entrance (Exit Down)</option>
+              <option value="2">2. Entrance (Exit Up)</option>
+              <option value="3">3. Straight Corridor</option>
+              <option value="4">4. 3-Way A (Center-Top, Lower-L, Lower-R)</option>
+              <option value="5">5. 3-Way B (Center-Bottom, Upper-L, Upper-R)</option>
+              <option value="6">6. Dead End (From Bottom)</option>
+              <option value="7">7. Dead End (From Top)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] uppercase text-slate-400 font-semibold block mb-1 font-mono">Title</label>
+              <input id="room-label-input" type="text" placeholder="e.g. Plug Cape" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-cyan-500 font-medium">
+            </div>
+            <div>
+              <label class="text-[10px] uppercase text-amber-400 font-semibold block mb-1 font-mono">Item / Boss Note</label>
+              <input id="room-subtext-input" type="text" placeholder="e.g. C: Ticket / Zanbamon" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-amber-200 focus:outline-none focus:border-amber-500 font-medium">
+            </div>
+          </div>
+        </div>
+
+        <!-- REDIRECT INCOMING ENTRANCE PORT SELECTOR -->
+        <div id="incoming-ports-section" class="pt-2 border-t border-slate-800 space-y-1.5 shrink-0 hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase tracking-wider text-amber-400 font-bold font-mono">Change Arrow Entrance:</span>
+            <span class="text-[9px] text-slate-400">Drag tip or click port</span>
+          </div>
+          <div id="incoming-ports-container" class="flex flex-col gap-1">
+            <!-- Dynamically populated with incoming edges & port switcher -->
+          </div>
+        </div>
+
+        <!-- Screenshot Attachment with Large Preview -->
+        <div class="pt-2 border-t border-slate-800 space-y-1.5 shrink-0">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase tracking-wider text-amber-400 font-bold font-mono">In-Game Screenshot</span>
+            <span class="text-[9px] text-slate-500 font-mono">Ctrl+V to paste</span>
+          </div>
+          <!-- Large, Clear Photo Preview in Inspector -->
+          <div id="room-photo-preview" class="hidden relative rounded-lg border border-slate-700 overflow-hidden bg-slate-950">
+            <img id="room-photo-img" src="" alt="Room Screenshot" class="w-full h-44 object-contain bg-black/60 cursor-zoom-in" title="Click to view full size">
+            <button id="btn-remove-photo" title="Remove photo" class="absolute top-1.5 right-1.5 bg-red-600 hover:bg-red-700 text-white rounded p-1 text-[10px] font-bold shadow">✕</button>
+            <button id="btn-zoom-photo" title="Full size view" class="absolute bottom-1.5 right-1.5 bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/50 rounded px-2 py-0.5 text-[9px] font-mono shadow flex items-center gap-1">
+              <span>🔍</span> Full Size
+            </button>
+          </div>
+          <button id="btn-upload-photo" class="w-full py-1.5 px-2 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-600/50 rounded text-amber-300 font-medium transition flex items-center justify-center gap-1.5 text-[11px]">
+            <span>📷</span> Upload Image (or Ctrl+V)
+          </button>
+          <input type="file" id="room-photo-file-input" accept="image/*" class="hidden">
+        </div>
+
+        <!-- 1-CLICK 7 BRANCH OPTIONS SECTION -->
+        <div id="branching-hub" class="pt-2 border-t border-slate-800 space-y-2 shrink-0">
+          
+          <!-- Step 1: Select Active Exit Port -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] uppercase tracking-wider text-cyan-400 font-bold font-mono">1. Active Exit Port:</span>
+              <span id="active-port-display" class="text-[10px] px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300 font-mono font-bold">None</span>
+            </div>
+            <!-- Exit Tabs -->
+            <div id="exit-tabs-container" class="grid grid-cols-3 gap-1">
+              <!-- Dynamically populated with layout ports -->
+            </div>
+          </div>
+
+          <!-- Step 2: 1-Click 7 Layout Branch Options -->
+          <div class="space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] uppercase tracking-wider text-slate-300 font-bold font-mono">2. Click to Add Branch (1-7):</span>
+              <span id="path-limit-notice" class="text-[9px] text-slate-400 font-mono">Ready</span>
+            </div>
+
+            <div class="grid grid-cols-1 gap-1">
+              <button data-target-layout="1" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-cyan-950/80 border border-slate-700 hover:border-cyan-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-emerald-950 border border-emerald-500/50 text-emerald-300 font-bold text-[9px] flex items-center justify-center font-mono">1</span>
+                  <span class="font-medium text-slate-200 group-hover:text-cyan-200">Entrance (Exit Down)</span>
+                </div>
+                <span class="text-[10px] text-cyan-400 font-bold">+</span>
+              </button>
+
+              <button data-target-layout="2" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-cyan-950/80 border border-slate-700 hover:border-cyan-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-emerald-950 border border-emerald-500/50 text-emerald-300 font-bold text-[9px] flex items-center justify-center font-mono">2</span>
+                  <span class="font-medium text-slate-200 group-hover:text-cyan-200">Entrance (Exit Up)</span>
+                </div>
+                <span class="text-[10px] text-cyan-400 font-bold">+</span>
+              </button>
+
+              <button data-target-layout="3" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-cyan-950/80 border border-slate-700 hover:border-cyan-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-blue-950 border border-blue-500/50 text-blue-300 font-bold text-[9px] flex items-center justify-center font-mono">3</span>
+                  <span class="font-medium text-slate-200 group-hover:text-cyan-200">Straight Corridor</span>
+                </div>
+                <span class="text-[10px] text-cyan-400 font-bold">+</span>
+              </button>
+
+              <button data-target-layout="4" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-cyan-950/80 border border-slate-700 hover:border-cyan-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-indigo-950 border border-indigo-500/50 text-indigo-300 font-bold text-[9px] flex items-center justify-center font-mono">4</span>
+                  <span class="font-medium text-slate-200 group-hover:text-cyan-200">3-Way A (Top, Lower-L, Lower-R)</span>
+                </div>
+                <span class="text-[10px] text-cyan-400 font-bold">+</span>
+              </button>
+
+              <button data-target-layout="5" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-cyan-950/80 border border-slate-700 hover:border-cyan-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-indigo-950 border border-indigo-500/50 text-indigo-300 font-bold text-[9px] flex items-center justify-center font-mono">5</span>
+                  <span class="font-medium text-slate-200 group-hover:text-cyan-200">3-Way B (Bottom, Upper-L, Upper-R)</span>
+                </div>
+                <span class="text-[10px] text-cyan-400 font-bold">+</span>
+              </button>
+
+              <button data-target-layout="6" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-amber-950/80 border border-slate-700 hover:border-amber-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-black border border-amber-500/50 text-amber-400 font-bold text-[9px] flex items-center justify-center font-mono">6</span>
+                  <span class="font-medium text-slate-200 group-hover:text-amber-200">Dead End (From Bottom)</span>
+                </div>
+                <span class="text-[10px] text-amber-400 font-bold">+</span>
+              </button>
+
+              <button data-target-layout="7" class="quick-branch-btn w-full text-left px-2.5 py-1.5 rounded bg-slate-800 hover:bg-amber-950/80 border border-slate-700 hover:border-amber-500 transition flex items-center justify-between group shadow-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-4 h-4 rounded bg-black border border-amber-500/50 text-amber-400 font-bold text-[9px] flex items-center justify-center font-mono">7</span>
+                  <span class="font-medium text-slate-200 group-hover:text-amber-200">Dead End (From Top)</span>
+                </div>
+                <span class="text-[10px] text-amber-400 font-bold">+</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connect to Existing Room (Merge) -->
+        <div class="pt-2 border-t border-slate-800 space-y-1 shrink-0">
+          <button id="btn-connect-mode" class="w-full py-1.5 px-2 bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 rounded text-cyan-200 font-medium transition flex items-center justify-center gap-1.5 font-mono">
+            <span>🔗</span> Connect Active Point to Another Room
+          </button>
+          <p id="connect-hint" class="text-[10px] text-cyan-400 text-center hidden font-mono">
+            Click any point dot on another room to link...
+          </p>
+        </div>
+
+        <!-- Delete Room Button -->
+        <div class="pt-2 border-t border-slate-800 shrink-0">
+          <button id="btn-delete-room" class="w-full py-1.5 px-2 bg-red-950/50 hover:bg-red-900/60 border border-red-700/60 rounded text-red-300 font-medium transition flex items-center justify-center gap-1.5 font-mono">
+            <span>🗑️</span> Delete Room (Press Delete Key)
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+        <!-- READ-ONLY ROOM INTEL CARD (FOR VIEWERS & FRIENDS) -->
+      <div id="viewer-info-card" class="absolute top-4 right-4 w-84 bg-slate-900/95 border border-cyan-500/50 rounded-xl p-4 shadow-2xl backdrop-blur hidden z-30 flex-col gap-3 text-xs max-h-[92vh] overflow-y-auto font-mono">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 shrink-0">
+          <div class="font-bold text-cyan-300 flex items-center gap-2">
+            <span>📡</span> Circuit Node Intel
+          </div>
+          <button id="viewer-card-close" class="text-slate-400 hover:text-slate-200 text-sm px-1 font-bold">&times;</button>
+        </div>
+
+        <div class="space-y-2.5">
+          <div>
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-0.5">Room Location</div>
+            <div id="viewer-card-title" class="text-sm font-bold text-slate-100 font-sans"></div>
+          </div>
+          <div class="flex items-center justify-between">
+            <span id="viewer-card-type" class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 text-[10px] font-bold"></span>
+            <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <span id="viewer-card-color-dot" class="w-3.5 h-3.5 rounded-full border border-slate-700 inline-block"></span>
+              <span id="viewer-card-color-name">Pure White</span>
+            </div>
+          </div>
+
+          <!-- Item / Boss Note Box -->
+          <div id="viewer-card-note-box" class="p-2.5 rounded-lg bg-amber-950/50 border border-amber-600/50 text-amber-200 space-y-0.5 hidden">
+            <div class="text-[9px] uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1">
+              <span>📦</span> Item / Boss Intel:
+            </div>
+            <div id="viewer-card-note" class="text-[11px] font-semibold text-amber-100"></div>
+          </div>
+
+          <!-- In-Game Screenshot -->
+          <div id="viewer-card-photo-box" class="rounded-lg overflow-hidden border border-slate-700 bg-black/70 space-y-1 hidden">
+            <div class="relative group cursor-zoom-in" id="viewer-card-photo-wrap">
+              <img id="viewer-card-photo-img" src="" alt="Screenshot" class="w-full h-44 object-contain bg-black/60">
+              <div class="absolute inset-0 bg-cyan-950/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
+                <span class="px-2 py-1 rounded bg-black/80 text-cyan-300 text-[10px] font-bold">Click to Expand</span>
+              </div>
+            </div>
+            <div class="px-2 py-1 flex items-center justify-between text-[10px] text-slate-400 bg-slate-950/80 border-t border-slate-800">
+              <span>Attached Photo</span>
+              <button id="btn-viewer-card-photo-zoom" class="text-cyan-400 hover:text-cyan-300 font-bold">Zoom 🔍</button>
+            </div>
+          </div>
+
+          <!-- Connected Wires -->
+          <div>
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">Direct Wire Links</div>
+            <div id="viewer-card-conn-list" class="space-y-1"></div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between shrink-0">
+          <span>Read-Only View</span>
+          <span>Click canvas to dismiss</span>
+        </div>
+      </div>
+
+
+    <!-- LIGHTBOX MODAL FOR FULLSCREEN SCREENSHOT VIEW -->
+  <div id="lightbox-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+    <div class="relative max-w-5xl max-h-[92vh] flex flex-col items-center bg-slate-900 border border-cyan-500/60 rounded-xl overflow-hidden shadow-2xl">
+      <div class="w-full px-4 py-2.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between text-xs font-mono text-cyan-300">
+        <span id="lightbox-title" class="font-bold flex items-center gap-2">
+          <span>📸</span> In-Game Circuit Screenshot
+        </span>
+        <button id="lightbox-close" class="text-slate-400 hover:text-white text-lg font-bold px-2 py-0.5 transition">&times;</button>
+      </div>
+      <div class="p-3 bg-black flex items-center justify-center overflow-auto max-h-[82vh]">
+        <img id="lightbox-img" src="" class="max-w-full max-h-[78vh] object-contain rounded shadow-lg border border-slate-800">
+      </div>
+    </div>
+  </div>
+
+    <!-- PASSWORD GATE OVERLAY -->
+  <div id="password-gate" class="fixed inset-0 z-100 flex items-center justify-center bg-[#05070e]/95 backdrop-blur-md p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl relative overflow-hidden text-center font-mono">
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/20">
+        🔒
+      </div>
+      <h2 class="text-base font-bold text-cyan-300 tracking-wider uppercase">DIGIMON SERVER 01 ACCESS</h2>
+      <p class="text-xs text-slate-400 mt-1 mb-5">Restricted Network Topology &bull; Enter Security Passcode</p>
+
+      <form id="password-form" class="space-y-4">
+        <div class="relative">
+          <input id="gate-password-input" type="password" placeholder="Enter password..." autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required
+            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-center text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition" />
+          <button type="button" id="btn-toggle-gate-pw" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-sm px-2 py-1 cursor-pointer select-none z-20" title="Show/Hide Password">👁️</button>
+        </div>
+        <div id="gate-error-msg" class="text-xs text-rose-400 hidden flex items-center justify-center gap-1">
+          <span>⚠️</span> Access Denied: Invalid Security Passcode
+        </div>
+        <button type="submit" id="btn-gate-submit" class="w-full py-2.5 px-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-bold tracking-wider transition shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2">
+          <span>⚡</span> ENTER NETWORK
+        </button>
+      </form>
+
+      <div class="mt-4 pt-4 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
+        <span>Security: AES-DW3</span>
+        <span class="text-cyan-500/80">Default: View-Only</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-notification" class="fixed bottom-6 right-6 z-100 bg-slate-900 border border-cyan-500 text-cyan-200 px-4 py-2.5 rounded-xl shadow-2xl font-mono text-xs hidden items-center gap-2 backdrop-blur-md transition-all">
+    <span id="toast-icon">ℹ️</span>
+    <span id="toast-text">Notification message</span>
+  </div>
+
+  <script>
+    // --- 10 BRIGHT COLOR PALETTE CHOICES ---
+    const BRIGHT_PALETTE = [
+      { name: 'Pure White', hex: '#ffffff' },
+      { name: 'Cyber Cyan', hex: '#67e8f9' },
+      { name: 'Electric Yellow', hex: '#fde047' },
+      { name: 'Neon Lime', hex: '#86efac' },
+      { name: 'Digital Amber', hex: '#fdba74' },
+      { name: 'Hot Pink', hex: '#f472b6' },
+      { name: 'Electric Violet', hex: '#d8b4fe' },
+      { name: 'Coral Red', hex: '#fca5a5' },
+      { name: 'Aqua Mint', hex: '#5eead4' },
+      { name: 'Circuit Gold', hex: '#fde68a' }
+    ];
+
+    // --- EXACT PHYSICAL PORTS (CONNECTING POINTS) FOR ALL 7 LAYOUTS ---
+    const LAYOUT_PORTS = {
+      1: [
+        { id: 'down', name: 'Going Down', side: 'bottom', align: 0.5, dx: 0, dy: 85, isExit: true },
+        { id: 'entry', name: 'Surface Tube', side: 'top', align: 0.5, dx: 0, dy: -85, isExit: false }
+      ],
+      2: [
+        { id: 'up', name: 'Going Up', side: 'top', align: 0.5, dx: 0, dy: -85, isExit: true },
+        { id: 'entry', name: 'Surface Tube', side: 'bottom', align: 0.5, dx: 0, dy: 85, isExit: false }
+      ],
+      3: [
+        { id: 'south', name: 'South Exit', side: 'bottom', align: 0.5, dx: 0, dy: 85, isExit: true },
+        { id: 'north', name: 'North Exit', side: 'top', align: 0.5, dx: 0, dy: -85, isExit: true }
+      ],
+      4: [
+        { id: 'top', name: 'Center-Top', side: 'top', align: 0.5, dx: 0, dy: -85, isExit: true },
+        { id: 'lower_l', name: 'Lower-Left', side: 'bottom', align: 0.2, dx: -105, dy: 85, isExit: true },
+        { id: 'lower_r', name: 'Lower-Right', side: 'bottom', align: 0.8, dx: 105, dy: 85, isExit: true }
+      ],
+      5: [
+        { id: 'upper_l', name: 'Upper-Left', side: 'top', align: 0.2, dx: -105, dy: -85, isExit: true },
+        { id: 'bot', name: 'Center-Bottom', side: 'bottom', align: 0.5, dx: 0, dy: 85, isExit: true },
+        { id: 'upper_r', name: 'Upper-Right', side: 'top', align: 0.8, dx: 105, dy: -85, isExit: true }
+      ],
+      6: [
+        { id: 'entry', name: 'Bottom Wire', side: 'bottom', align: 0.5, dx: 0, dy: 85, isExit: false }
+      ],
+      7: [
+        { id: 'entry', name: 'Top Wire', side: 'top', align: 0.5, dx: 0, dy: -85, isExit: false }
+      ]
+    };
+
+    const LAYOUT_EXITS = LAYOUT_PORTS;
+
+    const LAYOUT_METAS = {
+      1: { name: 'Entrance (Exit Down)', w: 105, h: 46, isDeadEnd: false, maxPaths: 1 },
+      2: { name: 'Entrance (Exit Up)', w: 105, h: 46, isDeadEnd: false, maxPaths: 1 },
+      3: { name: 'Straight Corridor', w: 85, h: 42, isDeadEnd: false, maxPaths: 2 },
+      4: { name: '3-Way Junction A', w: 115, h: 48, isDeadEnd: false, maxPaths: 3 },
+      5: { name: '3-Way Junction B', w: 115, h: 48, isDeadEnd: false, maxPaths: 3 },
+      6: { name: 'Dead End (From Bottom)', w: 36, h: 36, isDeadEnd: true, maxPaths: 0 },
+      7: { name: 'Dead End (From Top)', w: 36, h: 36, isDeadEnd: true, maxPaths: 0 }
+    };
+
+    let state = {
+      nodes: [],
+      edges: [],
+      selectedId: null,
+      selectedPortIndex: 0,
+      selectedEdgeIndex: null,
+      connectingFrom: null,
+      draggingArrow: null,
+      view: { x: 140, y: 40, scale: 0.85 },
+      isPanning: false,
+      panStart: { x: 0, y: 0 }
+    };
+
+    
+    // =========================================================================
+    // SECURITY CONFIGURATION & ROLE MANAGEMENT
+    // =========================================================================
+    const PASSWORDS = {
+      VIEWER: 'MalaysiaDW3Necro',
+      EDITOR: 'MalaysiaDW3Necro-Admin'
+    };
+
+    state.isReadOnly = true; // Default to View-Only for friends
+    state.currentRole = 'viewer';
+
+    // DOM Elements for Security & Mode Control
+    const passwordGate = document.getElementById('password-gate');
+    const passwordForm = document.getElementById('password-form');
+    const gatePasswordInput = document.getElementById('gate-password-input');
+    const gateErrorMsg = document.getElementById('gate-error-msg');
+    const btnToggleGatePw = document.getElementById('btn-toggle-gate-pw');
+    const btnGateSubmit = document.getElementById('btn-gate-submit');
+
+    const sidebarAside = document.getElementById('sidebar-aside');
+    const editorControlsGroup = document.getElementById('editor-controls-group');
+    const viewerModeBadge = document.getElementById('viewer-mode-badge');
+    const editorModeBadge = document.getElementById('editor-mode-badge');
+    const btnUnlockEditor = document.getElementById('btn-unlock-editor');
+    const btnSwitchViewer = document.getElementById('btn-switch-viewer');
+    const btnPublishMap = document.getElementById('btn-publish-map');
+    const btnShareLink = document.getElementById('btn-share-link');
+    const btnLockSession = document.getElementById('btn-lock-session');
+
+    // Viewer Info Card Elements
+    const viewerInfoCard = document.getElementById('viewer-info-card');
+    const viewerCardClose = document.getElementById('viewer-card-close');
+    const viewerCardTitle = document.getElementById('viewer-card-title');
+    const viewerCardType = document.getElementById('viewer-card-type');
+    const viewerCardColorDot = document.getElementById('viewer-card-color-dot');
+    const viewerCardColorName = document.getElementById('viewer-card-color-name');
+    const viewerCardNoteBox = document.getElementById('viewer-card-note-box');
+    const viewerCardNote = document.getElementById('viewer-card-note');
+    const viewerCardPhotoBox = document.getElementById('viewer-card-photo-box');
+    const viewerCardPhotoImg = document.getElementById('viewer-card-photo-img');
+    const viewerCardPhotoWrap = document.getElementById('viewer-card-photo-wrap');
+    const btnViewerCardPhotoZoom = document.getElementById('btn-viewer-card-photo-zoom');
+    const viewerCardConnList = document.getElementById('viewer-card-conn-list');
+
+    // Toast Notification System
+    const toastNotification = document.getElementById('toast-notification');
+    const toastIcon = document.getElementById('toast-icon');
+    const toastText = document.getElementById('toast-text');
+    let toastTimeout = null;
+
+    function showToast(msg, icon = 'ℹ️', duration = 3500) {
+      if (!toastNotification) return;
+      if (toastIcon) toastIcon.textContent = icon;
+      if (toastText) toastText.textContent = msg;
+      toastNotification.classList.remove('hidden');
+      toastNotification.classList.add('flex');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toastNotification.classList.add('hidden');
+        toastNotification.classList.remove('flex');
+      }, duration);
+    }
+
+    // Role Application Engine
+    function setRole(role) {
+      state.currentRole = role;
+      state.isReadOnly = (role !== 'editor');
+      try {
+        sessionStorage.setItem('dw3_auth_role', role);
+      } catch (err) {}
+
+      if (role === 'editor') {
+        if (sidebarAside) sidebarAside.classList.remove('hidden');
+        if (editorControlsGroup) {
+          editorControlsGroup.classList.remove('hidden');
+          editorControlsGroup.classList.add('flex');
+        }
+        if (editorModeBadge) {
+          editorModeBadge.classList.remove('hidden');
+          editorModeBadge.classList.add('flex');
+        }
+        if (viewerModeBadge) {
+          viewerModeBadge.classList.add('hidden');
+          viewerModeBadge.classList.remove('flex');
+        }
+        if (btnUnlockEditor) btnUnlockEditor.classList.add('hidden');
+        if (saveBadge) {
+          saveBadge.classList.remove('hidden');
+          saveBadge.classList.add('flex');
+        }
+        if (viewerInfoCard) {
+          viewerInfoCard.classList.add('hidden');
+          viewerInfoCard.classList.remove('flex');
+        }
+        if (viewport) viewport.style.cursor = 'crosshair';
+        document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'grab');
+      } else {
+        // VIEW-ONLY MODE (Friends)
+        if (sidebarAside) sidebarAside.classList.add('hidden');
+        if (editorControlsGroup) {
+          editorControlsGroup.classList.add('hidden');
+          editorControlsGroup.classList.remove('flex');
+        }
+        if (editorModeBadge) {
+          editorModeBadge.classList.add('hidden');
+          editorModeBadge.classList.remove('flex');
+        }
+        if (viewerModeBadge) {
+          viewerModeBadge.classList.remove('hidden');
+          viewerModeBadge.classList.add('flex');
+        }
+        if (btnUnlockEditor) btnUnlockEditor.classList.remove('hidden');
+        if (saveBadge) {
+          saveBadge.classList.add('hidden');
+          saveBadge.classList.remove('flex');
+        }
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        if (viewport) viewport.style.cursor = 'grab';
+        document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'pointer');
+      }
+      renderAll();
+    }
+
+    // Eye button toggle listener
+    if (btnToggleGatePw) {
+      btnToggleGatePw.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const inp = document.getElementById('gate-password-input');
+        if (!inp) return;
+        if (inp.type === 'password') {
+          inp.type = 'text';
+          btnToggleGatePw.textContent = '🔒';
+        } else {
+          inp.type = 'password';
+          btnToggleGatePw.textContent = '👁️';
+        }
+      });
+    }
+
+    // Password Gate Form Submission
+    if (passwordForm) {
+      passwordForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const inp = document.getElementById('gate-password-input');
+        if (!inp) return;
+        const val = inp.value.trim();
+        if (val === PASSWORDS.VIEWER) {
+          if (gateErrorMsg) gateErrorMsg.classList.add('hidden');
+          if (passwordGate) passwordGate.classList.add('hidden');
+          setRole('viewer');
+          showToast('Access Granted! Viewing circuit network.', '🔓');
+        } else if (val === PASSWORDS.EDITOR) {
+          if (gateErrorMsg) gateErrorMsg.classList.add('hidden');
+          if (passwordGate) passwordGate.classList.add('hidden');
+          setRole('editor');
+          showToast('Administrator Access Granted! Editor unlocked.', '⚡');
+        } else {
+          if (gateErrorMsg) gateErrorMsg.classList.remove('hidden');
+          inp.classList.add('ring-2', 'ring-rose-500');
+          setTimeout(() => inp.classList.remove('ring-2', 'ring-rose-500'), 1500);
+        }
+      });
+    }
+
+    // Unlock Editor Button
+    if (btnUnlockEditor) {
+      btnUnlockEditor.addEventListener('click', () => {
+        const pass = prompt('Enter Administrator Passcode to unlock Editor mode:');
+        if (pass === PASSWORDS.EDITOR) {
+          setRole('editor');
+          showToast('Editor mode unlocked! You can now edit rooms.', '⚡');
+        } else if (pass !== null) {
+          alert('Invalid passcode. Only the map author can edit.');
+        }
+      });
+    }
+
+    // Switch to Viewer Preview
+    if (btnSwitchViewer) {
+      btnSwitchViewer.addEventListener('click', () => {
+        setRole('viewer');
+        showToast('Switched to View-Only mode. Click "Editor Login" to return.', '👁️');
+      });
+    }
+
+    // Lock Session
+    if (btnLockSession) {
+      btnLockSession.addEventListener('click', () => {
+        try { sessionStorage.removeItem('dw3_auth_role'); } catch(err){}
+        if (passwordGate) passwordGate.classList.remove('hidden');
+        const inp = document.getElementById('gate-password-input');
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
+      });
+    }
+
+    // Viewer Card Close
+    if (viewerCardClose) {
+      viewerCardClose.addEventListener('click', () => {
+        if (viewerInfoCard) {
+          viewerInfoCard.classList.add('hidden');
+          viewerInfoCard.classList.remove('flex');
+        }
+      });
+    }
+
+    // Viewer Card Photo Zoom to Lightbox
+    if (btnViewerCardPhotoZoom) {
+      btnViewerCardPhotoZoom.addEventListener('click', () => {
+        if (viewerCardPhotoImg && viewerCardPhotoImg.src) {
+          openLightbox(viewerCardPhotoImg.src, viewerCardTitle ? viewerCardTitle.textContent : 'Room Screenshot');
+        }
+      });
+    }
+    if (viewerCardPhotoWrap) {
+      viewerCardPhotoWrap.addEventListener('click', () => {
+        if (viewerCardPhotoImg && viewerCardPhotoImg.src) {
+          openLightbox(viewerCardPhotoImg.src, viewerCardTitle ? viewerCardTitle.textContent : 'Room Screenshot');
+        }
+      });
+    }
+
+    // Function to populate and display Viewer Info Card for Friends
+    function showViewerInfoCard(node) {
+      if (!viewerInfoCard || !node) return;
+      const title = node.label || node.title || 'Circuit Room';
+      if (viewerCardTitle) viewerCardTitle.textContent = title;
+
+      const meta = (typeof LAYOUT_METAS !== 'undefined' && LAYOUT_METAS[node.layoutId]) ? LAYOUT_METAS[node.layoutId] : null;
+      const typeName = meta ? meta.name : (node.type || 'ROOM');
+      if (viewerCardType) viewerCardType.textContent = typeName;
+
+      const color = node.color || '#38bdf8';
+      if (viewerCardColorDot) viewerCardColorDot.style.backgroundColor = color;
+      if (viewerCardColorName) viewerCardColorName.textContent = color;
+
+      const noteText = (node.subtext || node.note || '').trim();
+      if (noteText && viewerCardNote && viewerCardNoteBox) {
+        viewerCardNote.textContent = noteText;
+        viewerCardNoteBox.classList.remove('hidden');
+      } else if (viewerCardNoteBox) {
+        viewerCardNoteBox.classList.add('hidden');
+      }
+
+      const photoSrc = node.image || node.photo || '';
+      if (photoSrc && viewerCardPhotoImg && viewerCardPhotoBox) {
+        viewerCardPhotoImg.src = photoSrc;
+        viewerCardPhotoBox.classList.remove('hidden');
+      } else if (viewerCardPhotoBox) {
+        viewerCardPhotoBox.classList.add('hidden');
+      }
+
+      if (viewerCardConnList) {
+        viewerCardConnList.innerHTML = '';
+        const conns = state.edges.filter(e => e.from === node.id || e.to === node.id);
+        if (conns.length === 0) {
+          viewerCardConnList.innerHTML = '<div class="text-[10px] text-slate-500 italic">No connected wires</div>';
+        } else {
+          conns.forEach(c => {
+            const isOut = (c.from === node.id);
+            const otherId = isOut ? c.to : c.from;
+            const otherNode = state.nodes.find(n => n.id === otherId);
+            const otherName = otherNode ? (otherNode.label || otherNode.title || otherId) : ('Room ' + otherId);
+            const div = document.createElement('div');
+            div.className = 'px-2 py-1 rounded bg-slate-950/80 border border-slate-800 flex items-center justify-between text-[11px] text-slate-300';
+            div.innerHTML = `
+              <span class="font-sans font-medium">${otherName}</span>
+              <span class="text-[9px] px-1 py-0.2 rounded bg-slate-800 font-mono text-cyan-300">${isOut ? '→ ' + (c.toPort || 'in') : '← ' + (c.fromPort || 'out')}</span>
+            `;
+            viewerCardConnList.appendChild(div);
+          });
+        }
+      }
+
+      viewerInfoCard.classList.remove('hidden');
+      viewerInfoCard.classList.add('flex');
+    }
+
+    // Publish & Share Functions
+    if (btnPublishMap) {
+      btnPublishMap.addEventListener('click', () => {
+        saveLiveMap();
+      });
+    }
+    if (btnShareLink) {
+      btnShareLink.addEventListener('click', () => {
+        copyShareLink();
+      });
+    }
+
+    function saveLiveMap() {
+      try {
+        const payload = JSON.stringify({ nodes: state.nodes, edges: state.edges, version: 1.2 });
+        localStorage.setItem('dw3_published_map', payload);
+        showToast('Live Map saved! Friends will load this layout.', '🚀');
+      } catch (e) {
+        showToast('Error saving map: ' + e.message, '⚠️');
+      }
+    }
+
+    function copyShareLink() {
+      try {
+        const payload = JSON.stringify({ nodes: state.nodes, edges: state.edges });
+        const encoded = btoa(encodeURIComponent(payload));
+        const url = new URL(window.location.href);
+        url.searchParams.set('map', encoded);
+        navigator.clipboard.writeText(url.toString()).then(() => {
+          showToast('Shareable link copied with map data! Send to friends.', '🔗');
+        }).catch(() => {
+          prompt('Copy this link for your friends:', url.toString());
+        });
+      } catch (err) {
+        showToast('Could not encode map link: ' + err.message, '⚠️');
+      }
+    }
+
+    function getPortCoords(node, port) {
+      if (!node || !port) return { x: 0, y: 0 };
+      const x = node.x + node.w * (port.align ?? 0.5);
+      const y = (port.side === 'top' ? node.y : node.y + node.h);
+      return { x, y };
+    }
+
+    function resolveTargetPortIndex(fromNode, fromPort, toNode) {
+      const toPorts = LAYOUT_PORTS[toNode.layoutId] || [];
+      if (toPorts.length === 0) return 0;
+      if (toPorts.length === 1) return 0;
+
+      const fromPos = getPortCoords(fromNode, fromPort);
+      const toCenterY = toNode.y + toNode.h / 2;
+      const preferredSide = fromPos.y <= toCenterY ? 'top' : 'bottom';
+
+      let candidates = toPorts.map((p, idx) => ({ p, idx })).filter(item => item.p.side === preferredSide);
+      if (candidates.length === 0) {
+        candidates = toPorts.map((p, idx) => ({ p, idx }));
+      }
+
+      let bestIdx = candidates[0].idx;
+      let bestDist = Infinity;
+      for (const item of candidates) {
+        const pPos = getPortCoords(toNode, item.p);
+        const dist = Math.hypot(pPos.x - fromPos.x, pPos.y - fromPos.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = item.idx;
+        }
+      }
+      return bestIdx;
+    }
+
+    // --- UNDO & REDO STACK ENGINE ---
+    let undoStack = [];
+    let redoStack = [];
+
+    function pushUndoState() {
+      const snap = JSON.stringify({ nodes: state.nodes, edges: state.edges });
+      if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snap) return;
+      undoStack.push(snap);
+      if (undoStack.length > 50) undoStack.shift();
+      redoStack = [];
+    }
+
+    function performUndo() {
+      if (undoStack.length === 0) return;
+      const current = JSON.stringify({ nodes: state.nodes, edges: state.edges });
+      redoStack.push(current);
+      const prev = JSON.parse(undoStack.pop());
+      state.nodes = prev.nodes;
+      state.edges = prev.edges;
+      state.selectedId = null;
+      state.selectedEdgeIndex = null;
+      state.connectingFrom = null;
+      renderAll();
+      selectRoom(null);
+      triggerAutoSave();
+    }
+
+    function performRedo() {
+      if (redoStack.length === 0) return;
+      const current = JSON.stringify({ nodes: state.nodes, edges: state.edges });
+      undoStack.push(current);
+      const next = JSON.parse(redoStack.pop());
+      state.nodes = next.nodes;
+      state.edges = next.edges;
+      state.selectedEdgeIndex = null;
+      state.connectingFrom = null;
+      renderAll();
+      triggerAutoSave();
+    }
+
+    document.getElementById('btn-undo').addEventListener('click', performUndo);
+    document.getElementById('btn-redo').addEventListener('click', performRedo);
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+      // READ-ONLY / VIEWER MODE GUARD: Friends cannot edit via shortcuts!
+      if (state.isReadOnly) {
+        if (e.key === 'Escape') {
+          selectRoom(null);
+          closeLightbox();
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) performRedo();
+        else performUndo();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        performRedo();
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (state.selectedId) {
+          e.preventDefault();
+          deleteSelectedRoom();
+        } else if (state.selectedEdgeIndex !== null) {
+          e.preventDefault();
+          deleteSelectedEdge();
+        }
+      }
+
+      if (e.key === 'Escape') {
+        closeLightbox();
+        if (state.connectingFrom || state.draggingArrow) {
+          state.connectingFrom = null;
+          state.draggingArrow = null;
+          document.getElementById('drag-line').classList.add('hidden');
+          connectHint.classList.add('hidden');
+          renderAll();
+        }
+      }
+    });
+
+    function deleteSelectedRoom() {
+      if (!state.selectedId) return;
+      pushUndoState();
+      const id = state.selectedId;
+      state.nodes = state.nodes.filter(n => n.id !== id);
+      state.edges = state.edges.filter(e => e.from !== id && e.to !== id);
+      state.connectingFrom = null;
+      state.selectedEdgeIndex = null;
+      selectRoom(null);
+      renderAll();
+      triggerAutoSave();
+    }
+
+    function deleteSelectedEdge() {
+      if (state.selectedEdgeIndex === null) return;
+      pushUndoState();
+      state.edges.splice(state.selectedEdgeIndex, 1);
+      state.selectedEdgeIndex = null;
+      renderAll();
+      triggerAutoSave();
+    }
+
+    // Auto-Save System
+    const DB_NAME = 'DW3_Cartographer_DB';
+    const STORE_NAME = 'dw3_drafts';
+
+    function openDatabase() {
+      return new Promise((resolve) => {
+        if (!window.indexedDB) { resolve(null); return; }
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    async function saveDraftToStorage(data) {
+      try {
+        const db = await openDatabase();
+        if (db) {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).put(data, 'dw3_active_draft');
+        }
+      } catch (err) {}
+      try {
+        const lightCopy = {
+          nodes: data.nodes.map(n => ({ ...n, image: n.image && n.image.length > 60000 ? null : n.image })),
+          edges: data.edges,
+          view: data.view
+        };
+        localStorage.setItem('dw3_draft_backup', JSON.stringify(lightCopy));
+      } catch (e) {}
+    }
+
+    async function loadDraftFromStorage() {
+      try {
+        const db = await openDatabase();
+        if (db) {
+          return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const req = tx.objectStore(STORE_NAME).get('dw3_active_draft');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
+          });
+        }
+      } catch (err) {}
+      try {
+        const raw = localStorage.getItem('dw3_draft_backup');
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+
+    let autoSaveTimer = null;
+    function triggerAutoSave() {
+      updateSaveBadge('saving');
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(async () => {
+        await saveDraftToStorage({
+          nodes: state.nodes,
+          edges: state.edges,
+          view: state.view
+        });
+        updateSaveBadge('saved');
+      }, 300);
+    }
+
+    const saveBadge = document.getElementById('save-status-badge');
+    function updateSaveBadge(status) {
+      if (!saveBadge) return;
+      if (status === 'saving') {
+        saveBadge.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/60 text-[10px] text-amber-300 font-mono transition-all';
+        saveBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span><span>Saving...</span>';
+      } else if (status === 'saved') {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        saveBadge.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/60 text-[10px] text-emerald-300 font-mono transition-all';
+        saveBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>Draft Auto-Saved (${timeStr})</span>`;
+      }
+    }
+
+    window.addEventListener('beforeunload', () => {
+      saveDraftToStorage({ nodes: state.nodes, edges: state.edges, view: state.view });
+    });
+
+    // DOM Elements
+    const viewport = document.getElementById('viewport');
+    const canvasWorld = document.getElementById('canvas-world');
+    const nodesContainer = document.getElementById('nodes-container');
+    const edgesGroup = document.getElementById('edges-group');
+    const handlesGroup = document.getElementById('handles-group');
+    const labelsGroup = document.getElementById('labels-group');
+    const dragLine = document.getElementById('drag-line');
+    const inspector = document.getElementById('inspector');
+    const zoomReadout = document.getElementById('zoom-readout');
+    const statCount = document.getElementById('stat-count');
+
+    const colorPaletteContainer = document.getElementById('color-palette-container');
+    const colorNameDisplay = document.getElementById('color-name-display');
+    const roomLayoutSelect = document.getElementById('room-layout-select');
+    const roomLabelInput = document.getElementById('room-label-input');
+    const roomSubtextInput = document.getElementById('room-subtext-input');
+    const roomPhotoPreview = document.getElementById('room-photo-preview');
+    const roomPhotoImg = document.getElementById('room-photo-img');
+    const btnRemovePhoto = document.getElementById('btn-remove-photo');
+    const btnUploadPhoto = document.getElementById('btn-upload-photo');
+    const btnZoomPhoto = document.getElementById('btn-zoom-photo');
+    const roomPhotoFileInput = document.getElementById('room-photo-file-input');
+    const activePortDisplay = document.getElementById('active-port-display');
+    const exitTabsContainer = document.getElementById('exit-tabs-container');
+    const branchingHub = document.getElementById('branching-hub');
+    const pathLimitNotice = document.getElementById('path-limit-notice');
+    const connectHint = document.getElementById('connect-hint');
+    const incomingPortsSection = document.getElementById('incoming-ports-section');
+    const incomingPortsContainer = document.getElementById('incoming-ports-container');
+
+    // Lightbox Elements
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxTitle = document.getElementById('lightbox-title');
+    const lightboxClose = document.getElementById('lightbox-close');
+
+    function openLightbox(src, title = 'In-Game Screenshot') {
+      if (!src) return;
+      lightboxImg.src = src;
+      lightboxTitle.innerHTML = `<span>📸</span> ${title}`;
+      lightboxModal.classList.remove('hidden');
+    }
+    function closeLightbox() {
+      lightboxModal.classList.add('hidden');
+      lightboxImg.src = '';
+    }
+    lightboxClose.addEventListener('click', closeLightbox);
+    lightboxModal.addEventListener('click', (e) => {
+      if (e.target === lightboxModal) closeLightbox();
+    });
+
+    // Build 10 Color Swatches in Inspector
+    function buildColorPaletteUI() {
+      colorPaletteContainer.innerHTML = '';
+      BRIGHT_PALETTE.forEach(c => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = c.hex;
+        swatch.title = c.name;
+        swatch.dataset.hex = c.hex;
+        swatch.dataset.name = c.name;
+
+        swatch.addEventListener('click', () => {
+          if (!state.selectedId) return;
+          const node = state.nodes.find(n => n.id === state.selectedId);
+          if (node) {
+            pushUndoState();
+            node.color = c.hex;
+            renderNodes();
+            updateColorPaletteUI(c.hex);
+            triggerAutoSave();
+          }
+        });
+        colorPaletteContainer.appendChild(swatch);
+      });
+    }
+    buildColorPaletteUI();
+
+    function updateColorPaletteUI(currentHex = '#ffffff') {
+      const match = BRIGHT_PALETTE.find(c => c.hex.toLowerCase() === (currentHex || '#ffffff').toLowerCase()) || BRIGHT_PALETTE[0];
+      colorNameDisplay.textContent = match.name;
+      colorPaletteContainer.querySelectorAll('.color-swatch').forEach(s => {
+        if (s.dataset.hex.toLowerCase() === match.hex.toLowerCase()) {
+          s.classList.add('active-swatch');
+        } else {
+          s.classList.remove('active-swatch');
+        }
+      });
+    }
+
+    // Clipboard Paste (Ctrl+V)
+    window.addEventListener('paste', (e) => {
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          handleImageUpload(file);
+          e.preventDefault();
+          break;
+        }
+      }
+    });
+
+    function handleImageUpload(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        pushUndoState();
+        const dataUrl = ev.target.result;
+        if (state.selectedId) {
+          const node = state.nodes.find(n => n.id === state.selectedId);
+          if (node) {
+            node.image = dataUrl;
+            renderAll();
+            selectRoom(node.id);
+            triggerAutoSave();
+          }
+        } else {
+          const newRoom = createRoom(1, 'New Room', '');
+          newRoom.image = dataUrl;
+          renderAll();
+          selectRoom(newRoom.id);
+          triggerAutoSave();
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    btnUploadPhoto.addEventListener('click', () => roomPhotoFileInput.click());
+    roomPhotoFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleImageUpload(e.target.files[0]);
+    });
+    btnRemovePhoto.addEventListener('click', () => {
+      if (state.selectedId) {
+        pushUndoState();
+        const node = state.nodes.find(n => n.id === state.selectedId);
+        if (node) {
+          delete node.image;
+          renderAll();
+          selectRoom(node.id);
+          triggerAutoSave();
+        }
+      }
+    });
+    btnZoomPhoto.addEventListener('click', () => {
+      if (state.selectedId) {
+        const node = state.nodes.find(n => n.id === state.selectedId);
+        if (node && node.image) openLightbox(node.image, node.label || 'Room Screenshot');
+      }
+    });
+    roomPhotoImg.addEventListener('click', () => {
+      if (state.selectedId) {
+        const node = state.nodes.find(n => n.id === state.selectedId);
+        if (node && node.image) openLightbox(node.image, node.label || 'Room Screenshot');
+      }
+    });
+
+    function updateTransform() {
+      canvasWorld.style.transform = `translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;
+      zoomReadout.textContent = `${Math.round(state.view.scale * 100)}%`;
+    }
+
+    function renderAll() {
+      renderEdges();
+      renderNodes();
+      updateStats();
+    }
+
+    // --- AUTO-FIT TEXT SCALER: Ensures all words fit cleanly inside box ---
+    function autoFitNodeText(el, maxW, maxH) {
+      const titleEl = el.querySelector('.node-title');
+      const subtextEl = el.querySelector('.node-subtext');
+      if (!titleEl) return;
+
+      const hasSub = Boolean(subtextEl && subtextEl.textContent.trim());
+      let titleSize = hasSub ? 10.5 : 11.5;
+      titleEl.style.fontSize = `${titleSize}px`;
+
+      // Available height for title
+      const availTitleH = hasSub ? maxH * 0.58 : maxH;
+
+      // Iteratively reduce font size until text fits without clipping
+      while ((titleEl.scrollHeight > availTitleH || titleEl.scrollWidth > maxW) && titleSize > 6.5) {
+        titleSize -= 0.5;
+        titleEl.style.fontSize = `${titleSize}px`;
+      }
+
+      if (hasSub && subtextEl) {
+        let subSize = 8.5;
+        subtextEl.style.fontSize = `${subSize}px`;
+        const availSubH = maxH * 0.42;
+        while ((subtextEl.scrollHeight > availSubH || subtextEl.scrollWidth > maxW) && subSize > 6.0) {
+          subSize -= 0.5;
+          subtextEl.style.fontSize = `${subSize}px`;
+        }
+      }
+    }
+
+    // --- RENDER NODES WITH PROMINENT BIGGER PHOTO & AUTO-FIT WORDS ---
+    function renderNodes() {
+      nodesContainer.innerHTML = '';
+      const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+
+      state.nodes.forEach(node => {
+        const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
+        const ports = LAYOUT_PORTS[node.layoutId] || [];
+        const el = document.createElement('div');
+        el.id = `node-${node.id}`;
+        el.className = `absolute map-node rounded flex flex-col items-center justify-center text-center p-1 select-none font-sans text-xs ${meta.isDeadEnd ? 'deadend-node' : ''}`;
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
+        el.style.width = `${node.w}px`;
+        el.style.height = `${node.h}px`;
+
+        if (!meta.isDeadEnd) {
+          el.style.backgroundColor = node.color || '#ffffff';
+        }
+
+        if (state.selectedId === node.id) el.classList.add('selected');
+
+        // PROMINENT, BIGGER PHOTO BADGE (84px x 56px, expands to 220px on hover!)
+        const photoBadge = node.image ? `
+          <div class="room-photo-badge" data-node-id="${node.id}" title="Click for fullscreen, hover to inspect!">
+            <img src="${node.image}" alt="Screenshot">
+            <span class="photo-tag">📸 DW3</span>
+          </div>
+        ` : '';
+
+        // Add Interactive Physical Port Indicators directly on the room borders
+        let portsHTML = '';
+        ports.forEach((port, idx) => {
+          const isConnected = state.edges.some(e => {
+            if (e.from === node.id) {
+              const fromIdx = e.fromPortIndex ?? e.exitIndex ?? 0;
+              return fromIdx === idx;
+            }
+            if (e.to === node.id) {
+              if (e.toPortIndex != null) return e.toPortIndex === idx;
+              const parentNode = nodeMap.get(e.from);
+              const parentPorts = LAYOUT_PORTS[parentNode?.layoutId] || [];
+              const fromPort = parentPorts[e.fromPortIndex ?? e.exitIndex ?? 0] || {};
+              return resolveTargetPortIndex(parentNode, fromPort, node) === idx;
+            }
+            return false;
+          });
+
+          const isSelectedPort = (state.selectedId === node.id && state.selectedPortIndex === idx);
+          const isConnectingSource = (state.connectingFrom && state.connectingFrom.nodeId === node.id && state.connectingFrom.portIndex === idx);
+
+          const topPercent = port.side === 'top' ? '0%' : '100%';
+          const leftPercent = `${port.align * 100}%`;
+
+          portsHTML += `
+            <div class="port-wrapper" 
+                 style="top: ${topPercent}; left: ${leftPercent};"
+                 data-node-id="${node.id}"
+                 data-port-index="${idx}"
+                 title="${port.name} (${isConnected ? 'Connected' : 'Free'}) - Click to link/select">
+              <div class="port-dot ${isConnected ? 'connected' : 'available'} ${isSelectedPort || isConnectingSource ? 'active-port' : ''}"></div>
+            </div>
+          `;
+        });
+
+        // DEAD END ROOM: FLOATING CALLOUT NOTE BESIDE ROOM
+        if (meta.isDeadEnd) {
+          const hasContent = Boolean(node.label || node.subtext);
+          const titleText = node.label || 'Dead End';
+          const noteText = node.subtext || '';
+
+          el.innerHTML = `
+            ${photoBadge}
+            ${portsHTML}
+            <span class="text-[9px] text-cyan-400 font-bold font-mono">✕</span>
+            <div class="deadend-note-badge absolute left-full ml-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 rounded-md border shadow-xl whitespace-nowrap z-25 pointer-events-auto transition-all ${
+              hasContent ? 'bg-amber-950/95 border-amber-500/80 text-amber-200' : 'bg-slate-900/90 border-slate-700 text-slate-400'
+            }">
+              <div class="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent ${hasContent ? 'border-r-amber-500/80' : 'border-r-slate-700'}"></div>
+              <span class="text-[11px]">${hasContent ? '📦' : '📝'}</span>
+              <div class="flex flex-col text-left leading-tight">
+                <span class="font-bold text-[10px] ${hasContent ? 'text-amber-100' : 'text-slate-300'} font-sans">${titleText}</span>
+                ${noteText ? `<span class="text-[9px] text-amber-300 font-mono font-bold">${noteText}</span>` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          // NORMAL ROOM: AUTO-RESIZE WORDS FITTED TO BOX
+          el.innerHTML = `
+            ${photoBadge}
+            ${portsHTML}
+            <div class="node-text-container">
+              <div class="node-title">${node.label || meta.name}</div>
+              ${node.subtext ? `<div class="node-subtext">${node.subtext}</div>` : ''}
+            </div>
+          `;
+        }
+
+        // Photo Click Lightbox handler
+        const pBadge = el.querySelector('.room-photo-badge');
+        if (pBadge) {
+          pBadge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openLightbox(node.image, node.label || 'In-Game Screenshot');
+          });
+        }
+
+        // Port click handlers
+        el.querySelectorAll('.port-wrapper').forEach(pWrap => {
+          pWrap.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            const portIdx = parseInt(pWrap.dataset.portIndex, 10);
+            handlePortClick(node.id, portIdx);
+          });
+        });
+
+        setupNodeDrag(el, node);
+        nodesContainer.appendChild(el);
+
+        // Run auto-fit text scaler on the newly attached element
+        if (!meta.isDeadEnd) {
+          autoFitNodeText(el, node.w - 10, node.h - 10);
+        }
+      });
+    }
+
+    // --- ACCURATE ARROW ROUTING WITH DRAGGABLE ENTRANCE HANDLES ---
+        // --- CLEAN STRAIGHT PLUMB LINES (NO ARROWS, NO WORDS, DEDUPLICATED) ---
+    function renderEdges() {
+      edgesGroup.innerHTML = '';
+      handlesGroup.innerHTML = '';
+      labelsGroup.innerHTML = '';
+      const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+
+      // Deduplicate bidirectional edges
+      const renderedPairs = new Set();
+
+      state.edges.forEach((edge, index) => {
+        const fromNode = nodeMap.get(edge.from);
+        const toNode = nodeMap.get(edge.to);
+        if (!fromNode || !toNode) return;
+
+        // Create normalized pair key
+        const pairKey = [edge.from, edge.to].sort().join('--');
+        if (renderedPairs.has(pairKey)) {
+          return; // Skip duplicate reverse edge
+        }
+        renderedPairs.add(pairKey);
+
+        const fromPort = edge.fromPort || 'bottom';
+        const toPort = edge.toPort || 'top';
+        const p1 = getPortCoords(fromNode, fromPort);
+        const p2 = getPortCoords(toNode, toPort);
+
+        const isSelected = (state.selectedEdgeIndex === index) ||
+          (state.selectedId && (fromNode.id === state.selectedId || toNode.id === state.selectedId));
+
+        // PURE STRAIGHT PLUMB LINE
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+
+        path.setAttribute('d', d);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', isSelected ? '#38bdf8' : '#334155');
+        path.setAttribute('stroke-width', isSelected ? '2.5' : '1.75');
+        path.setAttribute('stroke-linecap', 'round');
+        path.style.cursor = state.isReadOnly ? 'default' : 'pointer';
+        path.style.transition = 'stroke 0.2s, stroke-width 0.2s';
+
+        // Hover & Select interactions
+        path.addEventListener('mouseenter', () => {
+          if (!isSelected) {
+            path.setAttribute('stroke', '#06b6d4');
+            path.setAttribute('stroke-width', '2.2');
+          }
+        });
+        path.addEventListener('mouseleave', () => {
+          if (!isSelected) {
+            path.setAttribute('stroke', '#334155');
+            path.setAttribute('stroke-width', '1.75');
+          }
+        });
+        path.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (state.isReadOnly) {
+            selectRoom(toNode.id);
+            return;
+          }
+          state.selectedEdgeIndex = index;
+          selectRoom(toNode.id);
+          renderAll();
+        });
+
+        edgesGroup.appendChild(path);
+      });
+    }
+
+    // --- ARROWHEAD DRAG-AND-DROP TO REDIRECT ENTRANCE ---
+    function startArrowDrag(edgeIndex, startPos, targetNodeId) {
+      state.draggingArrow = {
+        edgeIndex,
+        startPos,
+        targetNodeId
+      };
+      dragLine.setAttribute('x1', startPos.x);
+      dragLine.setAttribute('y1', startPos.y);
+      dragLine.setAttribute('x2', startPos.x);
+      dragLine.setAttribute('y2', startPos.y);
+      dragLine.classList.remove('hidden');
+    }
+
+    // --- HANDLE PORT CLICKS (FOR SELECTING OR LINKING SPECIFIC POINTS) ---
+    function handlePortClick(nodeId, portIdx) {
+      if (state.connectingFrom) {
+        if (state.connectingFrom.nodeId !== nodeId) {
+          pushUndoState();
+          const fromNode = state.nodes.find(n => n.id === state.connectingFrom.nodeId);
+          const fromPorts = LAYOUT_PORTS[fromNode?.layoutId] || [];
+          const fromPort = fromPorts[state.connectingFrom.portIndex] || fromPorts[0];
+
+          state.edges = state.edges.filter(ed => !(ed.from === state.connectingFrom.nodeId && (ed.fromPortIndex === state.connectingFrom.portIndex || (ed.fromPortIndex == null && ed.exitIndex === state.connectingFrom.portIndex))));
+
+          state.edges.push({
+            from: state.connectingFrom.nodeId,
+            fromPortIndex: state.connectingFrom.portIndex,
+            exitIndex: state.connectingFrom.portIndex,
+            to: nodeId,
+            toPortIndex: portIdx,
+            exitLabel: fromPort.name,
+            exitSide: fromPort.side,
+            exitAlign: fromPort.align
+          });
+          triggerAutoSave();
+        }
+        state.connectingFrom = null;
+        connectHint.classList.add('hidden');
+        renderAll();
+        selectRoom(nodeId);
+        return;
+      }
+
+      if (state.selectedEdgeIndex !== null) {
+        const edge = state.edges[state.selectedEdgeIndex];
+        if (edge && edge.to === nodeId) {
+          pushUndoState();
+          edge.toPortIndex = portIdx;
+          renderAll();
+          selectRoom(nodeId);
+          triggerAutoSave();
+          return;
+        }
+      }
+
+      selectRoom(nodeId);
+      state.selectedPortIndex = portIdx;
+      const node = state.nodes.find(n => n.id === nodeId);
+      const ports = LAYOUT_PORTS[node.layoutId] || [];
+      renderExitTabs(node, ports);
+      renderAll();
+    }
+
+    // --- DRAGGING ROOM (ARROWS FOLLOW SMOOTHLY IN REAL TIME) ---
+    let dragNode = null;
+    let dragOffset = { x: 0, y: 0 };
+    let hasMoved = false;
+
+    function setupNodeDrag(el, node) {
+      el.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+
+        if (state.connectingFrom) {
+          if (state.connectingFrom.nodeId !== node.id) {
+            pushUndoState();
+            const fromNode = state.nodes.find(n => n.id === state.connectingFrom.nodeId);
+            const fromPorts = LAYOUT_PORTS[fromNode?.layoutId] || [];
+            const fromPort = fromPorts[state.connectingFrom.portIndex] || fromPorts[0];
+            const targetPortIdx = resolveTargetPortIndex(fromNode, fromPort, node);
+
+            state.edges = state.edges.filter(ed => !(ed.from === state.connectingFrom.nodeId && (ed.fromPortIndex === state.connectingFrom.portIndex || (ed.fromPortIndex == null && ed.exitIndex === state.connectingFrom.portIndex))));
+
+            state.edges.push({
+              from: state.connectingFrom.nodeId,
+              fromPortIndex: state.connectingFrom.portIndex,
+              exitIndex: state.connectingFrom.portIndex,
+              to: node.id,
+              toPortIndex: targetPortIdx,
+              exitLabel: fromPort.name,
+              exitSide: fromPort.side,
+              exitAlign: fromPort.align
+            });
+            triggerAutoSave();
+          }
+          state.connectingFrom = null;
+          connectHint.classList.add('hidden');
+          renderAll();
+          selectRoom(node.id);
+          return;
+        }
+
+        selectRoom(node.id);
+        // READ-ONLY / VIEWER MODE GUARD: Friends cannot drag rooms
+        if (state.isReadOnly) return;
+        dragNode = node;
+        hasMoved = false;
+        const mouseX = (e.clientX - state.view.x) / state.view.scale;
+        const mouseY = (e.clientY - state.view.y) / state.view.scale;
+        dragOffset.x = mouseX - node.x;
+        dragOffset.y = mouseY - node.y;
+      });
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      const mouseX = (e.clientX - state.view.x) / state.view.scale;
+      const mouseY = (e.clientY - state.view.y) / state.view.scale;
+
+      if (state.draggingArrow) {
+        dragLine.setAttribute('x2', mouseX);
+        dragLine.setAttribute('y2', mouseY);
+        return;
+      }
+
+      if (dragNode) {
+        if (!hasMoved) {
+          pushUndoState();
+          hasMoved = true;
+        }
+        dragNode.x = Math.round(mouseX - dragOffset.x);
+        dragNode.y = Math.round(mouseY - dragOffset.y);
+
+        const el = document.getElementById(`node-${dragNode.id}`);
+        if (el) {
+          el.style.left = `${dragNode.x}px`;
+          el.style.top = `${dragNode.y}px`;
+        }
+        renderEdges();
+      } else if (state.isPanning) {
+        state.view.x = e.clientX - state.panStart.x;
+        state.view.y = e.clientY - state.panStart.y;
+        updateTransform();
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (state.draggingArrow) {
+        const mouseX = (e.clientX - state.view.x) / state.view.scale;
+        const mouseY = (e.clientY - state.view.y) / state.view.scale;
+        dragLine.classList.add('hidden');
+
+        const targetNode = state.nodes.find(n => n.id === state.draggingArrow.targetNodeId);
+        if (targetNode) {
+          const ports = LAYOUT_PORTS[targetNode.layoutId] || [];
+          let bestPortIdx = 0;
+          let bestDist = Infinity;
+          ports.forEach((p, idx) => {
+            const pos = getPortCoords(targetNode, p);
+            const dist = Math.hypot(pos.x - mouseX, pos.y - mouseY);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestPortIdx = idx;
+            }
+          });
+
+          pushUndoState();
+          const edge = state.edges[state.draggingArrow.edgeIndex];
+          if (edge) {
+            edge.toPortIndex = bestPortIdx;
+          }
+          triggerAutoSave();
+        }
+        state.draggingArrow = null;
+        renderAll();
+        return;
+      }
+
+      if (dragNode && hasMoved) {
+        // Snap center X to 16px grid, and Y to 16px grid
+        const cx = dragNode.x + dragNode.w * 0.5;
+        const snappedCx = Math.round(cx / 16) * 16;
+        dragNode.x = Math.round(snappedCx - dragNode.w * 0.5);
+        dragNode.y = Math.round(dragNode.y / 16) * 16;
+        renderAll();
+        triggerAutoSave();
+      }
+      dragNode = null;
+      if (state.isPanning) {
+        state.isPanning = false;
+        viewport.style.cursor = 'crosshair';
+        triggerAutoSave();
+      }
+    });
+
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target === viewport || e.target.id === 'nodes-container' || e.target.tagName === 'svg') {
+        state.isPanning = true;
+        state.panStart.x = e.clientX - state.view.x;
+        state.panStart.y = e.clientY - state.view.y;
+        viewport.style.cursor = 'grabbing';
+        state.selectedEdgeIndex = null;
+        if (!state.connectingFrom) selectRoom(null);
+      }
+    });
+
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      const newScale = Math.min(2.5, Math.max(0.25, state.view.scale * zoomFactor));
+
+      const rect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      state.view.x = mouseX - (mouseX - state.view.x) * (newScale / state.view.scale);
+      state.view.y = mouseY - (mouseY - state.view.y) * (newScale / state.view.scale);
+      state.view.scale = newScale;
+      updateTransform();
+      triggerAutoSave();
+    }, { passive: false });
+
+    // --- ROOM SELECTION & 1-CLICK 7-BRANCH ENGINE ---
+        function selectRoom(id) {
+      state.selectedId = id;
+      document.querySelectorAll('.map-node').forEach(n => n.classList.remove('selected'));
+
+      if (!id) {
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        if (viewerInfoCard) {
+          viewerInfoCard.classList.add('hidden');
+          viewerInfoCard.classList.remove('flex');
+        }
+        return;
+      }
+
+      const el = document.getElementById(`node-${id}`);
+      if (el) el.classList.add('selected');
+
+      const node = state.nodes.find(n => n.id === id);
+      if (!node) return;
+
+      // --- VIEW-ONLY / FRIEND PERSPECTIVE ---
+      if (state.isReadOnly) {
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        showViewerInfoCard(node);
+        return;
+      }
+
+      // --- EDITOR / ADMIN PERSPECTIVE ---
+      if (viewerInfoCard) {
+        viewerInfoCard.classList.add('hidden');
+        viewerInfoCard.classList.remove('flex');
+      }
+
+      const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
+      const ports = LAYOUT_PORTS[node.layoutId] || [];
+
+      updateColorPaletteUI(node.color || '#ffffff');
+      roomLayoutSelect.value = node.layoutId;
+      roomLabelInput.value = node.label || '';
+      roomSubtextInput.value = node.subtext || '';
+
+      if (node.image) {
+        roomPhotoImg.src = node.image;
+        roomPhotoPreview.classList.remove('hidden');
+      } else {
+        roomPhotoPreview.classList.add('hidden');
+      }
+
+      renderIncomingPortsSection(node, ports);
+
+      if (meta.isDeadEnd || ports.filter(p => p.isExit !== false).length === 0) {
+        branchingHub.classList.add('hidden');
+      } else {
+        branchingHub.classList.remove('hidden');
+        renderExitTabs(node, ports);
+      }
+
+      inspector.classList.remove('hidden');
+      inspector.classList.add('flex');
+    }
+
+    function renderIncomingPortsSection(node, ports) {
+      const incomingEdges = state.edges.filter(e => e.to === node.id);
+      if (incomingEdges.length === 0) {
+        incomingPortsSection.classList.add('hidden');
+        return;
+      }
+
+      incomingPortsContainer.innerHTML = '';
+      incomingPortsSection.classList.remove('hidden');
+
+      incomingEdges.forEach(edge => {
+        const fromNode = state.nodes.find(n => n.id === edge.from);
+        const fromLabel = fromNode ? (fromNode.label || `Room ${fromNode.id.slice(-4)}`) : 'Parent';
+
+        const row = document.createElement('div');
+        row.className = 'p-1.5 rounded bg-slate-800 border border-slate-700 flex flex-col gap-1';
+
+        const title = document.createElement('div');
+        title.className = 'text-[9.5px] text-slate-300 font-mono flex items-center justify-between';
+        title.innerHTML = `<span>From <strong class="text-cyan-300">${fromLabel}</strong></span> <span class="text-[8px] text-slate-500">Pick Entrance:</span>`;
+        row.appendChild(title);
+
+        const btnGrid = document.createElement('div');
+        btnGrid.className = 'grid grid-cols-3 gap-1';
+
+        ports.forEach((p, pIdx) => {
+          const isCurrentEntrance = (edge.toPortIndex === pIdx || (edge.toPortIndex == null && resolveTargetPortIndex(fromNode, {}, node) === pIdx));
+          const btn = document.createElement('button');
+          btn.className = `px-1 py-1 rounded text-[9px] font-mono font-bold border transition ${
+            isCurrentEntrance 
+              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' 
+              : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+          }`;
+          const arrowSymbol = p.side === 'top' ? '↑' : '↓';
+          btn.textContent = `${arrowSymbol} ${p.name}`;
+
+          btn.addEventListener('click', () => {
+            pushUndoState();
+            edge.toPortIndex = pIdx;
+            renderAll();
+            renderIncomingPortsSection(node, ports);
+            triggerAutoSave();
+          });
+
+          btnGrid.appendChild(btn);
+        });
+
+        row.appendChild(btnGrid);
+        incomingPortsContainer.appendChild(row);
+      });
+    }
+
+    function renderExitTabs(node, ports) {
+      exitTabsContainer.innerHTML = '';
+      if (state.selectedPortIndex >= ports.length) state.selectedPortIndex = 0;
+
+      const outgoingCount = state.edges.filter(e => e.from === node.id).length;
+      const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
+      pathLimitNotice.textContent = `${outgoingCount} / ${meta.maxPaths} exits used`;
+
+      ports.forEach((port, idx) => {
+        const isConnected = state.edges.some(e => {
+          if (e.from === node.id) {
+            const fromIdx = e.fromPortIndex ?? e.exitIndex ?? 0;
+            return fromIdx === idx;
+          }
+          if (e.to === node.id) {
+            if (e.toPortIndex != null) return e.toPortIndex === idx;
+            const parentNode = state.nodes.find(n => n.id === e.from);
+            const parentPorts = LAYOUT_PORTS[parentNode?.layoutId] || [];
+            const fromPort = parentPorts[e.fromPortIndex ?? e.exitIndex ?? 0] || {};
+            return resolveTargetPortIndex(parentNode, fromPort, node) === idx;
+          }
+          return false;
+        });
+
+        const isActive = (state.selectedPortIndex === idx);
+
+        const btn = document.createElement('button');
+        btn.className = `p-1.5 rounded border text-[10px] font-bold transition flex flex-col items-center justify-center font-mono ${
+          isActive 
+            ? 'bg-cyan-600 text-white border-cyan-400 shadow-xs ring-1 ring-cyan-300' 
+            : (isConnected ? 'bg-cyan-950/80 text-cyan-200 border-cyan-800' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700')
+        }`;
+        
+        const arrowSymbol = port.side === 'top' ? '↑' : '↓';
+        btn.innerHTML = `
+          <span>${arrowSymbol} ${port.name}</span>
+          <span class="text-[8px] font-normal opacity-80">${isConnected ? '● Connected' : '○ Free'}</span>
+        `;
+
+        btn.addEventListener('click', () => {
+          state.selectedPortIndex = idx;
+          updateActivePortDisplay(port, isConnected);
+          renderExitTabs(node, ports);
+          renderAll();
+        });
+
+        exitTabsContainer.appendChild(btn);
+      });
+
+      const activePort = ports[state.selectedPortIndex];
+      const isCurConnected = state.edges.some(e => e.from === node.id && (e.fromPortIndex === state.selectedPortIndex || (e.fromPortIndex == null && e.exitIndex === state.selectedPortIndex)));
+      updateActivePortDisplay(activePort, isCurConnected);
+    }
+
+    function updateActivePortDisplay(port, isConnected) {
+      if (!port) {
+        activePortDisplay.textContent = 'None';
+        return;
+      }
+      activePortDisplay.textContent = `${port.side === 'top' ? '↑' : '↓'} ${port.name} ${isConnected ? '(In Use)' : '(Open)'}`;
+    }
+
+    // --- 1-CLICK DIRECT BRANCH BUTTONS ---
+    document.querySelectorAll('.quick-branch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!state.selectedId) return;
+        const parentNode = state.nodes.find(n => n.id === state.selectedId);
+        if (!parentNode) return;
+
+        const ports = LAYOUT_PORTS[parentNode.layoutId] || [];
+        if (ports.length === 0) return;
+
+        pushUndoState();
+
+        const fromPortIdx = state.selectedPortIndex ?? 0;
+        const fromPort = ports[fromPortIdx] || ports[0];
+        const targetLayoutId = parseInt(btn.dataset.targetLayout, 10);
+        const meta = LAYOUT_METAS[targetLayoutId];
+
+        state.edges = state.edges.filter(e => !(e.from === parentNode.id && (e.fromPortIndex === fromPortIdx || (e.fromPortIndex == null && e.exitIndex === fromPortIdx))));
+
+        const spawnX = parentNode.x + fromPort.dx;
+        const spawnY = parentNode.y + fromPort.dy;
+
+        const newRoom = createRoom(targetLayoutId, '', '', spawnX, spawnY);
+        newRoom.color = parentNode.color || '#ffffff';
+
+        const toPortIdx = resolveTargetPortIndex(parentNode, fromPort, newRoom);
+
+        state.edges.push({
+          from: parentNode.id,
+          fromPortIndex: fromPortIdx,
+          exitIndex: fromPortIdx,
+          to: newRoom.id,
+          toPortIndex: toPortIdx,
+          exitLabel: fromPort.name,
+          exitSide: fromPort.side,
+          exitAlign: fromPort.align
+        });
+
+        renderAll();
+        selectRoom(newRoom.id);
+        triggerAutoSave();
+      });
+    });
+
+    // Inspector Updates
+    roomLayoutSelect.addEventListener('change', () => {
+      const node = state.nodes.find(n => n.id === state.selectedId);
+      if (node) {
+        pushUndoState();
+        node.layoutId = parseInt(roomLayoutSelect.value, 10);
+        const meta = LAYOUT_METAS[node.layoutId];
+        node.w = meta.w;
+        node.h = meta.h;
+        state.selectedPortIndex = 0;
+        const maxPorts = (LAYOUT_PORTS[node.layoutId] || []).length;
+        state.edges = state.edges.filter(e => !(e.from === node.id && (e.fromPortIndex ?? e.exitIndex ?? 0) >= maxPorts));
+        renderAll();
+        selectRoom(node.id);
+        triggerAutoSave();
+      }
+    });
+
+    roomLabelInput.addEventListener('input', () => {
+      const node = state.nodes.find(n => n.id === state.selectedId);
+      if (node) {
+        node.label = roomLabelInput.value;
+        renderNodes();
+        triggerAutoSave();
+      }
+    });
+
+    roomSubtextInput.addEventListener('input', () => {
+      const node = state.nodes.find(n => n.id === state.selectedId);
+      if (node) {
+        node.subtext = roomSubtextInput.value;
+        renderNodes();
+        triggerAutoSave();
+      }
+    });
+
+    document.getElementById('inspector-close').addEventListener('click', () => selectRoom(null));
+
+    // Connect mode (Link Active Port)
+    document.getElementById('btn-connect-mode').addEventListener('click', () => {
+      if (!state.selectedId) return;
+      const node = state.nodes.find(n => n.id === state.selectedId);
+      const ports = LAYOUT_PORTS[node?.layoutId] || [];
+      const port = ports[state.selectedPortIndex] || ports[0];
+
+      state.connectingFrom = {
+        nodeId: state.selectedId,
+        portIndex: state.selectedPortIndex
+      };
+      connectHint.textContent = `Connecting from ${port.name}... Click any point dot on another room!`;
+      connectHint.classList.remove('hidden');
+      renderAll();
+    });
+
+    // Delete Room Button
+    document.getElementById('btn-delete-room').addEventListener('click', deleteSelectedRoom);
+
+    // Palette independent add
+    document.querySelectorAll('.palette-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pushUndoState();
+        const layoutId = parseInt(btn.dataset.layout, 10);
+        const centerX = Math.round((-state.view.x + viewport.clientWidth / 2) / state.view.scale - 45);
+        const centerY = Math.round((-state.view.y + viewport.clientHeight / 2) / state.view.scale - 20);
+        const newRoom = createRoom(layoutId, '', '', centerX, centerY);
+        renderAll();
+        selectRoom(newRoom.id);
+        triggerAutoSave();
+      });
+    });
+
+    function createRoom(layoutId, label = '', subtext = '', x = 350, y = 100) {
+      const meta = LAYOUT_METAS[layoutId] || LAYOUT_METAS[1];
+      const id = `room_${Date.now()}_${Math.floor(Math.random() * 100)}`;
+      const node = {
+        id,
+        layoutId,
+        label: label || (meta.isDeadEnd ? '' : meta.name),
+        subtext,
+        color: '#ffffff',
+        x,
+        y,
+        w: meta.w,
+        h: meta.h
+      };
+      state.nodes.push(node);
+      return node;
+    }
+
+    // Directional Tidy Layout
+    document.getElementById('btn-tidy').addEventListener('click', () => {
+      if (state.nodes.length === 0) return;
+      pushUndoState();
+
+      const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+      const ranks = new Map(), visited = new Set();
+      const rootId = state.nodes[0]?.id;
+      if (!rootId) return;
+
+      ranks.set(rootId, 0);
+      const queue = [rootId];
+      visited.add(rootId);
+
+      while (queue.length > 0) {
+        const currId = queue.shift();
+        const currRank = ranks.get(currId);
+        const currNode = nodeMap.get(currId);
+        if (!currNode) continue;
+
+        state.edges.filter(e => e.from === currId).forEach(e => {
+          if (!visited.has(e.to)) {
+            const ports = LAYOUT_PORTS[currNode.layoutId] || [];
+            const portIdx = e.fromPortIndex ?? e.exitIndex ?? 0;
+            const portConf = ports[portIdx] || { side: 'bottom' };
+            const delta = portConf.side === 'top' ? -1 : 1;
+            ranks.set(e.to, currRank + delta);
+            visited.add(e.to);
+            queue.push(e.to);
+          }
+        });
+
+        state.edges.filter(e => e.to === currId).forEach(e => {
+          if (!visited.has(e.from)) {
+            const parentNode = nodeMap.get(e.from);
+            const ports = parentNode ? (LAYOUT_PORTS[parentNode.layoutId] || []) : [];
+            const portIdx = e.fromPortIndex ?? e.exitIndex ?? 0;
+            const portConf = ports[portIdx] || { side: 'bottom' };
+            const delta = portConf.side === 'top' ? 1 : -1;
+            ranks.set(e.from, currRank + delta);
+            visited.add(e.from);
+            queue.push(e.from);
+          }
+        });
+      }
+
+      state.nodes.forEach(n => { if (!ranks.has(n.id)) ranks.set(n.id, 0); });
+      const minRank = Math.min(...ranks.values());
+      state.nodes.forEach(n => ranks.set(n.id, ranks.get(n.id) - minRank));
+
+      const layers = new Map();
+      state.nodes.forEach(n => {
+        const r = ranks.get(n.id);
+        if (!layers.has(r)) layers.set(r, []);
+        layers.get(r).push(n);
+      });
+
+      layers.forEach(nodesInLayer => nodesInLayer.sort((a, b) => a.x - b.x));
+      const layerSpacingY = 95, nodeSpacingX = 125, startX = 400;
+
+      layers.forEach((nodesInLayer, rank) => {
+        const totalW = nodesInLayer.length * nodeSpacingX;
+        nodesInLayer.forEach((n, i) => {
+          n.y = 50 + rank * layerSpacingY;
+          n.x = Math.round(startX - totalW / 2 + i * nodeSpacingX + nodeSpacingX / 2 - n.w / 2);
+        });
+      });
+
+      renderAll();
+      triggerAutoSave();
+    });
+
+    // Fit View
+    document.getElementById('btn-fit').addEventListener('click', () => {
+      if (state.nodes.length === 0) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      state.nodes.forEach(n => {
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x + n.w);
+        maxY = Math.max(maxY, n.y + n.h);
+      });
+      const padding = 60;
+      const scaleX = viewport.clientWidth / (maxX - minX + padding * 2);
+      const scaleY = viewport.clientHeight / (maxY - minY + padding * 2);
+      const scale = Math.min(1.2, Math.max(0.3, Math.min(scaleX, scaleY)));
+      state.view.scale = scale;
+      state.view.x = (viewport.clientWidth - (maxX + minX) * scale) / 2;
+      state.view.y = (viewport.clientHeight - (maxY + minY) * scale) / 2;
+      updateTransform();
+      triggerAutoSave();
+    });
+
+    // Zoom Buttons
+    document.getElementById('btn-zoom-in').addEventListener('click', () => { state.view.scale = Math.min(2.5, state.view.scale * 1.2); updateTransform(); triggerAutoSave(); });
+    document.getElementById('btn-zoom-out').addEventListener('click', () => { state.view.scale = Math.max(0.25, state.view.scale / 1.2); updateTransform(); triggerAutoSave(); });
+    document.getElementById('btn-zoom-reset').addEventListener('click', () => { state.view.scale = 0.85; state.view.x = 140; state.view.y = 40; updateTransform(); triggerAutoSave(); });
+
+    // Clear Canvas
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      if (confirm('Clear the entire map?')) {
+        pushUndoState();
+        state.nodes = [];
+        state.edges = [];
+        selectRoom(null);
+        renderAll();
+        triggerAutoSave();
+      }
+    });
+
+    // Export JSON
+    const btnExportEl = document.getElementById('btn-export-json');
+    if (btnExportEl) {
+      btnExportEl.addEventListener('click', () => {
+        const payload = {
+          nodes: state.nodes,
+          edges: state.edges,
+          version: 1.2,
+          exportedAt: new Date().toISOString()
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "dw3_circuit_map.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast('Map exported to dw3_circuit_map.json', '💾');
+      });
+    }
+
+    // Import JSON
+    const btnImportEl = document.getElementById('btn-import-json');
+    const inputImportFile = document.getElementById('import-json-file');
+    if (btnImportEl && inputImportFile) {
+      btnImportEl.addEventListener('click', () => {
+        inputImportFile.click();
+      });
+
+      inputImportFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data && Array.isArray(data.nodes)) {
+              state.nodes = data.nodes;
+              state.edges = data.edges || [];
+              renderAll();
+              zoomToFit();
+              triggerAutoSave();
+              saveLiveMap();
+              showToast('Map loaded successfully from JSON!', '📂');
+            } else {
+              alert('Invalid map JSON format: missing nodes array.');
+            }
+          } catch (err) {
+            alert('Failed to parse JSON file: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+        inputImportFile.value = '';
+      });
+    }
+
+    function updateStats() {
+      statCount.textContent = `${state.nodes.length} rooms (${state.edges.length} paths)`;
+    }
+
+    // Sample Map: Highlighting Bigger Photos, Auto-Fit Text & Server Theme
+    function loadSampleMap() {
+      if (window.DW3_DEFAULT_MAP && Array.isArray(window.DW3_DEFAULT_MAP.nodes)) {
+        state.nodes = JSON.parse(JSON.stringify(window.DW3_DEFAULT_MAP.nodes));
+        state.edges = JSON.parse(JSON.stringify(window.DW3_DEFAULT_MAP.edges || []));
+        if (window.DW3_DEFAULT_MAP.view) {
+          state.view = { ...window.DW3_DEFAULT_MAP.view };
+        }
+        console.log(`Loaded master map: ${state.nodes.length} rooms, ${state.edges.length} paths`);
+        return;
+      }
+      state.nodes = [
+        { id: 'n_plug', layoutId: 1, label: 'Plug Cape Entry', subtext: 'Surface Ladder', color: '#67e8f9', x: 380, y: 30, w: 105, h: 46 },
+        { id: 'n_corridor', layoutId: 3, label: 'Corridor 1', subtext: '', color: '#ffffff', x: 390, y: 135, w: 85, h: 42 },
+        { id: 'n_junction_b', layoutId: 5, label: 'Junction B (3-Way)', subtext: 'Circuit Split', color: '#fde047', x: 375, y: 245, w: 115, h: 48 },
+        // Upper-Left branch (Dead End with Item Note)
+        { id: 'n_upper_left', layoutId: 6, label: 'Power Charge', subtext: 'Chest #1', color: '#ffffff', x: 230, y: 145, w: 36, h: 36 },
+        // Center-Bottom branch
+        { id: 'n_center_bot', layoutId: 3, label: 'Lower Wire', subtext: '', color: '#86efac', x: 390, y: 360, w: 85, h: 42 },
+        // Upper-Right branch
+        { id: 'n_upper_right', layoutId: 4, label: 'Junction A', subtext: '3-Way Split', color: '#fdba74', x: 520, y: 145, w: 115, h: 48 }
+      ];
+
+      state.edges = [
+        { from: 'n_plug', fromPortIndex: 0, to: 'n_corridor', toPortIndex: 1, exitLabel: 'Going Down' },
+        { from: 'n_corridor', fromPortIndex: 0, to: 'n_junction_b', toPortIndex: 0, exitLabel: 'Straight Path' },
+        { from: 'n_junction_b', fromPortIndex: 0, to: 'n_upper_left', toPortIndex: 0, exitLabel: 'Upper-Left' },
+        { from: 'n_junction_b', fromPortIndex: 1, to: 'n_center_bot', toPortIndex: 1, exitLabel: 'Center-Bottom' },
+        { from: 'n_junction_b', fromPortIndex: 2, to: 'n_upper_right', toPortIndex: 1, exitLabel: 'Upper-Right' }
+      ];
+
+      renderAll();
+      selectRoom('n_junction_b');
+      triggerAutoSave();
+    }
+
+    document.getElementById('btn-sample').addEventListener('click', () => {
+      if (confirm('Reset to sample map?')) {
+        pushUndoState();
+        loadSampleMap();
+      }
+    });
+
+    // Startup
+    async function startApp() {
+      const saved = await loadDraftFromStorage();
+      if (window.DW3_DEFAULT_MAP && Array.isArray(window.DW3_DEFAULT_MAP.nodes) && (!saved || !saved.nodes || saved.nodes.length < window.DW3_DEFAULT_MAP.nodes.length)) {
+        loadSampleMap();
+        triggerAutoSave();
+        updateSaveBadge('saved');
+      } else if (saved && saved.nodes && saved.nodes.length > 0) {
+        state.nodes = saved.nodes;
+        state.edges = saved.edges || [];
+        if (saved.view) state.view = saved.view;
+        updateSaveBadge('saved');
+      } else {
+        loadSampleMap();
+      }
+      renderAll();
+      updateTransform();
+    }
+
+    startApp();
+  </script>
+</body>
+</html>
