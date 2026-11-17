@@ -388,7 +388,7 @@
   <div class="flex-1 flex overflow-hidden relative">
 
     <!-- Left Palette -->
-    <aside id="sidebar-aside" class="w-68 bg-slate-900/95 border-r border-slate-800 p-3 flex flex-col gap-3 shrink-0 overflow-y-auto text-xs z-20">
+    <aside id="sidebar-aside" class="hidden w-68 bg-slate-900/95 border-r border-slate-800 p-3 flex flex-col gap-3 shrink-0 overflow-y-auto text-xs z-20">
       
       <!-- Instructions & Shortcuts Card -->
       <div class="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-800/60 text-cyan-200 text-[11px] space-y-1.5 shadow-xs">
@@ -661,7 +661,7 @@
   </div>
 
               <!-- VIEWER MODE SEARCH & NAVIGATOR PANEL (RIGHT SIDE) -->
-      <aside id="viewer-search-panel" class="absolute top-14 right-3 w-80 max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-5rem)] bg-slate-900/95 border border-cyan-500/50 rounded-xl shadow-2xl backdrop-blur-md flex flex-col z-30 font-mono text-xs overflow-hidden transition-all duration-300">
+      <aside id="viewer-search-panel" class="hidden absolute top-14 right-3 w-80 max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-5rem)] bg-slate-900/95 border border-cyan-500/50 rounded-xl shadow-2xl backdrop-blur-md flex flex-col z-30 font-mono text-xs overflow- transition-all duration-300">
         <!-- Panel Header -->
         <div class="px-3 py-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between shrink-0 select-none">
           <div class="flex items-center gap-2 font-bold text-cyan-300">
@@ -960,7 +960,11 @@
       } catch (err) {}
 
       if (role === 'editor') {
-        if (sidebarAside) sidebarAside.classList.remove('hidden');
+        // --- EDITOR MODE (Owner / Admin) ---
+        if (sidebarAside) {
+          sidebarAside.classList.remove('hidden');
+          sidebarAside.classList.add('flex');
+        }
         if (editorControlsGroup) {
           editorControlsGroup.classList.remove('hidden');
           editorControlsGroup.classList.add('flex');
@@ -978,7 +982,7 @@
           saveBadge.classList.remove('hidden');
           saveBadge.classList.add('flex');
         }
-        // In editor mode, hide viewer search panel so inspector can be used
+        // In editor mode, hide viewer search panel
         if (viewerSearchPanel) {
           viewerSearchPanel.classList.add('hidden');
           viewerSearchPanel.classList.remove('flex');
@@ -986,11 +990,21 @@
         if (viewport) viewport.style.cursor = 'crosshair';
         document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'grab');
       } else {
-        // VIEW-ONLY MODE (Friends / Players)
-        if (sidebarAside) sidebarAside.classList.add('hidden');
+        // --- VIEW-ONLY MODE (Friends / Players) ---
+        // Server controls / Add Room box: STRICTLY HIDDEN
+        if (sidebarAside) {
+          sidebarAside.classList.add('hidden');
+          sidebarAside.classList.remove('flex');
+        }
+        // Editor controls / Export / Import: STRICTLY HIDDEN
         if (editorControlsGroup) {
           editorControlsGroup.classList.add('hidden');
           editorControlsGroup.classList.remove('flex');
+        }
+        // Inspector: STRICTLY HIDDEN
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
         }
         if (editorModeBadge) {
           editorModeBadge.classList.add('hidden');
@@ -1005,11 +1019,7 @@
           saveBadge.classList.add('hidden');
           saveBadge.classList.remove('flex');
         }
-        if (inspector) {
-          inspector.classList.add('hidden');
-          inspector.classList.remove('flex');
-        }
-        // In viewers mode, show the search navigator on the right side!
+        // ONLY the Search Navigator is visible for viewers on the right side!
         if (viewerSearchPanel) {
           viewerSearchPanel.classList.remove('hidden');
           viewerSearchPanel.classList.add('flex');
@@ -1089,6 +1099,22 @@
       btnLockSession.addEventListener('click', () => {
         try { sessionStorage.removeItem('dw3_auth_role'); } catch(err){}
         if (passwordGate) passwordGate.classList.remove('hidden');
+        if (sidebarAside) {
+          sidebarAside.classList.add('hidden');
+          sidebarAside.classList.remove('flex');
+        }
+        if (viewerSearchPanel) {
+          viewerSearchPanel.classList.add('hidden');
+          viewerSearchPanel.classList.remove('flex');
+        }
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        if (editorControlsGroup) {
+          editorControlsGroup.classList.add('hidden');
+          editorControlsGroup.classList.remove('flex');
+        }
         const inp = document.getElementById('gate-password-input');
         if (inp) {
           inp.value = '';
@@ -2845,6 +2871,47 @@
       } else {
         loadSampleMap();
       }
+
+      // Check authenticated role in sessionStorage
+      let existingAuth = null;
+      try {
+        existingAuth = sessionStorage.getItem('dw3_auth_role');
+      } catch (err) {}
+
+      if (existingAuth === 'editor') {
+        if (passwordGate) passwordGate.classList.add('hidden');
+        setRole('editor');
+      } else if (existingAuth === 'viewer') {
+        if (passwordGate) passwordGate.classList.add('hidden');
+        setRole('viewer');
+      } else {
+        // --- LOCKED GATE STATE (BEFORE LOGIN) ---
+        // Ensure sidebar (Add Room) and Search Panel are 100% HIDDEN on the login screen!
+        if (passwordGate) passwordGate.classList.remove('hidden');
+        if (sidebarAside) {
+          sidebarAside.classList.add('hidden');
+          sidebarAside.classList.remove('flex');
+        }
+        if (viewerSearchPanel) {
+          viewerSearchPanel.classList.add('hidden');
+          viewerSearchPanel.classList.remove('flex');
+        }
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        if (editorControlsGroup) {
+          editorControlsGroup.classList.add('hidden');
+          editorControlsGroup.classList.remove('flex');
+        }
+        state.isReadOnly = true;
+        const inp = document.getElementById('gate-password-input');
+        if (inp) {
+          inp.value = '';
+          setTimeout(() => inp.focus(), 150);
+        }
+      }
+
       renderAll();
       updateTransform();
     }
