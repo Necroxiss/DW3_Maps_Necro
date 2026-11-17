@@ -1314,45 +1314,55 @@
 
     // --- ACCURATE ARROW ROUTING WITH DRAGGABLE ENTRANCE HANDLES ---
         // --- CLEAN STRAIGHT PLUMB LINES (NO ARROWS, NO WORDS, DEDUPLICATED) ---
+    // --- CLEAN STRAIGHT PLUMB LINES CONNECTING EXACTLY TO ROOM PORT NODES ---
     function renderEdges() {
       edgesGroup.innerHTML = '';
       handlesGroup.innerHTML = '';
       labelsGroup.innerHTML = '';
       const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
 
-      // Deduplicate bidirectional edges
-      const renderedPairs = new Set();
-
       state.edges.forEach((edge, index) => {
         const fromNode = nodeMap.get(edge.from);
         const toNode = nodeMap.get(edge.to);
         if (!fromNode || !toNode) return;
 
-        // Create normalized pair key
-        const pairKey = [edge.from, edge.to].sort().join('--');
-        if (renderedPairs.has(pairKey)) {
-          return; // Skip duplicate reverse edge
-        }
-        renderedPairs.add(pairKey);
+        const fromPorts = LAYOUT_PORTS[fromNode.layoutId] || [];
+        const toPorts = LAYOUT_PORTS[toNode.layoutId] || [];
 
-        const fromPort = edge.fromPort || 'bottom';
-        const toPort = edge.toPort || 'top';
+        // 1. Resolve exact source port on fromNode
+        const fromPortIdx = edge.fromPortIndex ?? edge.exitIndex ?? 0;
+        let fromPort = fromPorts[fromPortIdx];
+        if (!fromPort) {
+          if (edge.exitSide && edge.exitAlign != null) {
+            fromPort = { side: edge.exitSide, align: edge.exitAlign, name: edge.exitLabel || 'Exit' };
+          } else {
+            fromPort = fromPorts[0] || { side: 'bottom', align: 0.5, name: 'Exit' };
+          }
+        }
+
+        // 2. Resolve exact target port on toNode
+        let toPortIdx = edge.toPortIndex;
+        let toPort = (toPortIdx != null) ? toPorts[toPortIdx] : null;
+        if (!toPort) {
+          toPortIdx = resolveTargetPortIndex(fromNode, fromPort, toNode);
+          toPort = toPorts[toPortIdx] || toPorts[0] || { side: 'top', align: 0.5, name: 'Entry' };
+        }
+
+        // 3. Exact physical coordinates of the small connecting points (port dots) on the rooms
         const p1 = getPortCoords(fromNode, fromPort);
         const p2 = getPortCoords(toNode, toPort);
 
         const isSelected = (state.selectedEdgeIndex === index) ||
           (state.selectedId && (fromNode.id === state.selectedId || toNode.id === state.selectedId));
 
-        // PURE STRAIGHT PLUMB LINE
+        // PURE STRAIGHT PLUMB LINE - Exactly connecting from port node to port node
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
-
-        path.setAttribute('d', d);
+        path.setAttribute('d', `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`);
         path.setAttribute('fill', 'none');
         path.setAttribute('stroke', isSelected ? '#38bdf8' : '#334155');
         path.setAttribute('stroke-width', isSelected ? '2.5' : '1.75');
         path.setAttribute('stroke-linecap', 'round');
-        path.style.cursor = 'pointer';
+        path.style.cursor = state.isReadOnly ? 'default' : 'pointer';
         path.style.transition = 'stroke 0.2s, stroke-width 0.2s';
 
         // Hover & Select interactions
@@ -1370,12 +1380,33 @@
         });
         path.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (state.isReadOnly) {
+            selectRoom(toNode.id);
+            return;
+          }
           state.selectedEdgeIndex = index;
           selectRoom(toNode.id);
           renderAll();
         });
 
         edgesGroup.appendChild(path);
+
+        // In Editor Mode: Draggable handle on target port to redirect entrance port
+        if (!state.isReadOnly && typeof startArrowDrag === 'function') {
+          const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          handle.setAttribute('cx', p2.x);
+          handle.setAttribute('cy', p2.y);
+          handle.setAttribute('r', '5');
+          handle.setAttribute('class', 'arrow-drag-handle');
+          handle.setAttribute('title', `Drag point to redirect entrance on ${toNode.label || 'room'}`);
+
+          handle.addEventListener('mousedown', (ev) => {
+            ev.stopPropagation();
+            startArrowDrag(index, p1, toNode.id);
+          });
+
+          handlesGroup.appendChild(handle);
+        }
       });
     }
 
