@@ -264,65 +264,122 @@
       background: #334155;
       border-radius: 3px;
     }
+  
+    /* --- PULSE ANIMATION FOR LOCATING ROOMS --- */
+    @keyframes pulseFound {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.95), 0 0 25px rgba(6, 182, 212, 0.8); }
+      35% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(6, 182, 212, 0.35), 0 0 45px rgba(6, 182, 212, 0.9); }
+      70% { transform: scale(1.02); box-shadow: 0 0 0 20px rgba(6, 182, 212, 0), 0 0 30px rgba(6, 182, 212, 0.4); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+    }
+    .pulse-found {
+      animation: pulseFound 1.1s ease-in-out infinite !important;
+      z-index: 60 !important;
+      outline: 3.5px solid #38bdf8 !important;
+      outline-offset: 3px !important;
+    }
+    .search-pill.active {
+      background-color: rgba(22, 78, 99, 0.9) !important;
+      border-color: #38bdf8 !important;
+      color: #67e8f9 !important;
+      font-weight: 700 !important;
+    }
+
   </style>
   <script src="map_data.js"></script>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
   <!-- Header: Digimon Cyber Console -->
-  <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-lg z-30 backdrop-blur">
+    <!-- Header: Digimon Cyber Console -->
+  <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0 shadow-lg z-30 backdrop-blur font-mono">
     <div class="flex items-center gap-3">
       <div class="w-8 h-8 rounded-lg bg-cyan-600/30 border border-cyan-400 flex items-center justify-center font-bold text-cyan-300 text-base shadow-sm">
         👾
       </div>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-sm font-bold tracking-wider text-cyan-400 uppercase font-mono">
+          <h1 class="text-xs font-bold tracking-wider text-cyan-400 uppercase">
             DW3 Circuit Cartographer
           </h1>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-600/50 text-amber-300 font-mono font-bold">
-            Server Theme
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-600/50 text-amber-300 font-bold">
+            Server 01
           </span>
-          <div id="save-status-badge" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-600/50 text-[10px] text-emerald-300 font-mono transition-all">
+          <!-- Viewer Badge -->
+          <div id="viewer-mode-badge" class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/60 text-[10px] text-cyan-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>👁️ View-Only Mode</span>
+          </div>
+          <!-- Editor Badge -->
+          <div id="editor-mode-badge" class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/60 text-[10px] text-amber-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            <span>⚡ Editor Mode (Owner)</span>
+          </div>
+          <!-- Save Status Badge -->
+          <div id="save-status-badge" class="hidden items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-600/50 text-[10px] text-emerald-300 transition-all">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             <span id="save-status-text">Draft Auto-Saved</span>
           </div>
         </div>
-        <p class="text-[11px] text-slate-400">Bigger Photos with Hover Zoom &bull; Auto-Resize Text Fitting &bull; Redirect Entrances &bull; <kbd class="px-1 bg-slate-800 border border-slate-700 rounded font-mono text-[10px]">Ctrl+Z</kbd> Undo</p>
+        <p class="text-[10px] text-slate-400" id="header-desc">
+          Interactive Circuit Network &bull; Pan & Zoom &bull; Click Rooms to Inspect Notes & Screenshots
+        </p>
       </div>
     </div>
 
     <!-- Toolbar -->
     <div class="flex items-center gap-2 text-xs">
-      <div id="recovery-banner" class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/60 text-[11px] text-emerald-300 font-mono">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-        <span id="recovery-banner-text">Draft Restored</span>
+      <!-- Editor-Only Controls -->
+      <div id="editor-controls-group" class="hidden items-center gap-1.5">
+        <button id="btn-undo" title="Undo last action (Ctrl+Z)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
+          <span>↩️</span> Undo
+        </button>
+        <button id="btn-redo" title="Redo action (Ctrl+Y)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
+          <span>↪️</span> Redo
+        </button>
+        <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+        <button id="btn-tidy" title="Align to grid & straight plumb lines without any box collisions" class="px-2 py-1 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 rounded font-medium flex items-center gap-1 transition shadow-sm border border-cyan-500/50 text-[11px]">
+          <span>⚡</span> Fix Layout
+        </button>
+        <button id="btn-sample" title="Reset to sample map" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded transition text-[11px]">
+          Reset
+        </button>
+        <button id="btn-clear" title="Clear canvas" class="px-2 py-1 bg-slate-800 hover:bg-red-950/80 hover:text-red-300 text-slate-400 border border-slate-700 rounded transition text-[11px]">
+          Clear
+        </button>
+        <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+        <button id="btn-publish-map" title="Save this map as the live version friends see" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded font-bold flex items-center gap-1.5 transition shadow-sm border border-emerald-500/60 text-[11px]">
+          <span>🚀</span> Save Live Map
+        </button>
+        <button id="btn-share-link" title="Copy shareable link with map data for friends" class="px-2 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded font-medium flex items-center gap-1 transition shadow-sm border border-blue-500/60 text-[11px]">
+          <span>🔗</span> Share Link
+        </button>
+        <button id="btn-switch-viewer" title="Preview as View-Only (Friend's perspective)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded transition text-[11px]">
+          👁️ Preview View-Only
+        </button>
+              <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+        <button id="btn-export-json" title="Download map JSON backup" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px]">
+          💾 Export
+        </button>
+        <button id="btn-import-json" title="Import map JSON file" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px] flex items-center gap-1">
+          <span>📂</span> Import
+        </button>
+        <input type="file" id="import-json-file" accept=".json" class="hidden" />
       </div>
-      <button id="btn-import-json" title="Import map JSON" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
-        <span>📂</span> Import JSON
-      </button>
-      <input type="file" id="import-json-file" accept=".json" class="hidden" />
-      <button id="btn-undo" title="Undo last action (Ctrl+Z)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition">
-        <span>↩️</span> Undo
-      </button>
-      <button id="btn-redo" title="Redo action (Ctrl+Y)" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition">
-        <span>↪️</span> Redo
-      </button>
-      <div class="h-5 w-px bg-slate-800 mx-1"></div>
-      <button id="btn-tidy" title="Auto-align rooms with directional ports" class="px-2.5 py-1.5 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 rounded font-medium flex items-center gap-1.5 transition shadow-sm border border-cyan-500/50">
-        <span>⚡</span> Tidy Layout
-      </button>
-      <button id="btn-fit" title="Fit view to all rooms" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1.5 transition">
+
+      <!-- Common Controls (Available in both modes) -->
+      <button id="btn-fit" title="Fit view to all rooms" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
         <span>🔍</span> Fit View
       </button>
-      <button id="btn-sample" title="Reset to sample map" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded transition">
-        Reset Sample
+      
+      <!-- Unlock Editor Button (Visible in Viewer Mode) -->
+      <button id="btn-unlock-editor" title="Enter Admin Password to Edit Maps" class="px-2 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 text-amber-300 rounded font-bold flex items-center gap-1.5 transition text-[11px]">
+        <span>🔐</span> Editor Login
       </button>
-      <button id="btn-clear" title="Clear canvas" class="px-2.5 py-1.5 bg-slate-800 hover:bg-red-950/80 hover:text-red-300 text-slate-400 border border-slate-700 rounded transition">
-        Clear
-      </button>
-      <button id="btn-export-json" title="Download map JSON" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition">
-        💾 Export JSON
+
+      <!-- Lock / Logout Button -->
+      <button id="btn-lock-session" title="Lock access & return to password screen" class="p-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 rounded transition text-xs">
+        🔒
       </button>
     </div>
   </header>
@@ -331,7 +388,7 @@
   <div class="flex-1 flex overflow-hidden relative">
 
     <!-- Left Palette -->
-    <aside class="w-68 bg-slate-900/95 border-r border-slate-800 p-3 flex flex-col gap-3 shrink-0 overflow-y-auto text-xs z-20">
+    <aside id="sidebar-aside" class="w-68 bg-slate-900/95 border-r border-slate-800 p-3 flex flex-col gap-3 shrink-0 overflow-y-auto text-xs z-20">
       
       <!-- Instructions & Shortcuts Card -->
       <div class="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-800/60 text-cyan-200 text-[11px] space-y-1.5 shadow-xs">
@@ -603,7 +660,108 @@
     </div>
   </div>
 
-  <!-- LIGHTBOX MODAL FOR FULLSCREEN SCREENSHOT VIEW -->
+              <!-- VIEWER MODE SEARCH & NAVIGATOR PANEL (RIGHT SIDE) -->
+      <aside id="viewer-search-panel" class="absolute top-3 right-3 w-80 max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4.5rem)] bg-slate-900/95 border border-cyan-500/50 rounded-xl shadow-2xl backdrop-blur-md flex flex-col z-30 font-mono text-xs overflow-hidden transition-all duration-300">
+        <!-- Panel Header -->
+        <div class="px-3 py-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between shrink-0 select-none">
+          <div class="flex items-center gap-2 font-bold text-cyan-300">
+            <span class="text-sm">🔍</span>
+            <span class="tracking-wider uppercase text-[11px]">Circuit Navigator</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span id="search-results-badge" class="px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-500/50 text-[10px] text-cyan-300">
+              68 entries
+            </span>
+            <button id="btn-toggle-search-panel" type="button" title="Minimize / Expand Search" class="text-slate-400 hover:text-slate-200 text-xs px-1.5 py-0.5 rounded hover:bg-slate-800 transition">
+              —
+            </button>
+          </div>
+        </div>
+
+        <div id="search-panel-body" class="flex flex-col flex-1 overflow-hidden p-3 gap-2.5">
+          <!-- Search Input Box -->
+          <div class="relative shrink-0">
+            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">🔎</span>
+            <input id="search-intel-input" type="text" placeholder="Type Item, Digimon, DDR, Tamer..." autocomplete="off" spellcheck="false"
+              class="w-full pl-8 pr-7 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-xs focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 placeholder:text-slate-500 transition font-sans" />
+            <button id="btn-clear-search" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 hidden" title="Clear search">✕</button>
+          </div>
+
+          <!-- Category Filter Pills -->
+          <div class="flex items-center gap-1 overflow-x-auto pb-1 shrink-0 no-scrollbar text-[10px]" id="search-filter-pills">
+            <button type="button" data-cat="all" class="search-pill active px-2 py-0.5 rounded-full bg-cyan-900/80 border border-cyan-400 text-cyan-200 font-bold shrink-0 transition">
+              All
+            </button>
+            <button type="button" data-cat="item" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>📦</span> Items
+            </button>
+            <button type="button" data-cat="ddr" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>👾</span> DDR/Digimon
+            </button>
+            <button type="button" data-cat="tamer" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>👤</span> Tamers
+            </button>
+            <button type="button" data-cat="location" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>📍</span> Areas
+            </button>
+          </div>
+
+          <!-- Scrollable Results List -->
+          <div id="search-results-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 font-sans text-xs">
+            <!-- Dynamically populated entries -->
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between shrink-0 font-mono">
+            <span>Click any item to jump</span>
+            <span class="text-cyan-400/80">Auto-Center 🎯</span>
+          </div>
+        </div>
+      </aside>
+          <div class="flex items-center justify-between">
+            <span id="viewer-card-type" class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 text-[10px] font-bold"></span>
+            <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <span id="viewer-card-color-dot" class="w-3.5 h-3.5 rounded-full border border-slate-700 inline-block"></span>
+              <span id="viewer-card-color-name">Pure White</span>
+            </div>
+          </div>
+
+          <!-- Item / Boss Note Box -->
+          <div id="viewer-card-note-box" class="p-2.5 rounded-lg bg-amber-950/50 border border-amber-600/50 text-amber-200 space-y-0.5 hidden">
+            <div class="text-[9px] uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1">
+              <span>📦</span> Item / Boss Intel:
+            </div>
+            <div id="viewer-card-note" class="text-[11px] font-semibold text-amber-100"></div>
+          </div>
+
+          <!-- In-Game Screenshot -->
+          <div id="viewer-card-photo-box" class="rounded-lg overflow-hidden border border-slate-700 bg-black/70 space-y-1 hidden">
+            <div class="relative group cursor-zoom-in" id="viewer-card-photo-wrap">
+              <img id="viewer-card-photo-img" src="" alt="Screenshot" class="w-full h-44 object-contain bg-black/60">
+              <div class="absolute inset-0 bg-cyan-950/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none">
+                <span class="px-2 py-1 rounded bg-black/80 text-cyan-300 text-[10px] font-bold">Click to Expand</span>
+              </div>
+            </div>
+            <div class="px-2 py-1 flex items-center justify-between text-[10px] text-slate-400 bg-slate-950/80 border-t border-slate-800">
+              <span>Attached Photo</span>
+              <button id="btn-viewer-card-photo-zoom" class="text-cyan-400 hover:text-cyan-300 font-bold">Zoom 🔍</button>
+            </div>
+          </div>
+
+          <!-- Connected Wires -->
+          <div>
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-1">Direct Wire Links</div>
+            <div id="viewer-card-conn-list" class="space-y-1"></div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between shrink-0">
+          <span>Read-Only View</span>
+          <span>Click canvas to dismiss</span>
+        </div>
+      </div>
+
+
+    <!-- LIGHTBOX MODAL FOR FULLSCREEN SCREENSHOT VIEW -->
   <div id="lightbox-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
     <div class="relative max-w-5xl max-h-[92vh] flex flex-col items-center bg-slate-900 border border-cyan-500/60 rounded-xl overflow-hidden shadow-2xl">
       <div class="w-full px-4 py-2.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between text-xs font-mono text-cyan-300">
@@ -616,6 +774,45 @@
         <img id="lightbox-img" src="" class="max-w-full max-h-[78vh] object-contain rounded shadow-lg border border-slate-800">
       </div>
     </div>
+  </div>
+
+    <!-- PASSWORD GATE OVERLAY -->
+  <div id="password-gate" class="fixed inset-0 z-100 flex items-center justify-center bg-[#05070e]/95 backdrop-blur-md p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl relative overflow-hidden text-center font-mono">
+      <div class="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/20">
+        🔒
+      </div>
+      <h2 class="text-base font-bold text-cyan-300 tracking-wider uppercase">DIGIMON SERVER 01 ACCESS</h2>
+      <p class="text-xs text-slate-400 mt-1 mb-5">Restricted Network Topology &bull; Enter Security Passcode</p>
+
+      <form id="password-form" class="space-y-4">
+        <div class="relative">
+          <input id="gate-password-input" type="password" placeholder="Enter password..." autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required
+            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-center text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition" />
+          <button type="button" id="btn-toggle-gate-pw" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-sm px-2 py-1 cursor-pointer select-none z-20" title="Show/Hide Password">👁️</button>
+        </div>
+        <div id="gate-error-msg" class="text-xs text-rose-400 hidden flex items-center justify-center gap-1">
+          <span>⚠️</span> Access Denied: Invalid Security Passcode
+        </div>
+        <button type="submit" id="btn-gate-submit" class="w-full py-2.5 px-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-bold tracking-wider transition shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2">
+          <span>⚡</span> ENTER NETWORK
+        </button>
+      </form>
+
+      <div class="mt-4 pt-4 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between">
+        <span>Security: AES-DW3</span>
+        <span class="text-cyan-500/80">Default: View-Only</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-notification" class="fixed bottom-6 right-6 z-100 bg-slate-900 border border-cyan-500 text-cyan-200 px-4 py-2.5 rounded-xl shadow-2xl font-mono text-xs hidden items-center gap-2 backdrop-blur-md transition-all">
+    <span id="toast-icon">ℹ️</span>
+    <span id="toast-text">Notification message</span>
   </div>
 
   <script>
@@ -689,6 +886,546 @@
       isPanning: false,
       panStart: { x: 0, y: 0 }
     };
+
+    
+    // =========================================================================
+    // SECURITY CONFIGURATION & ROLE MANAGEMENT
+    // =========================================================================
+    const PASSWORDS = {
+      VIEWER: 'MalaysiaDW3Necro',
+      EDITOR: 'MalaysiaDW3Necro-Admin'
+    };
+
+    state.isReadOnly = true; // Default to View-Only for friends
+    state.currentRole = 'viewer';
+
+    // DOM Elements for Security & Mode Control
+    const passwordGate = document.getElementById('password-gate');
+    const passwordForm = document.getElementById('password-form');
+    const gatePasswordInput = document.getElementById('gate-password-input');
+    const gateErrorMsg = document.getElementById('gate-error-msg');
+    const btnToggleGatePw = document.getElementById('btn-toggle-gate-pw');
+    const btnGateSubmit = document.getElementById('btn-gate-submit');
+
+    const sidebarAside = document.getElementById('sidebar-aside');
+    const editorControlsGroup = document.getElementById('editor-controls-group');
+    const viewerModeBadge = document.getElementById('viewer-mode-badge');
+    const editorModeBadge = document.getElementById('editor-mode-badge');
+    const btnUnlockEditor = document.getElementById('btn-unlock-editor');
+    const btnSwitchViewer = document.getElementById('btn-switch-viewer');
+    const btnPublishMap = document.getElementById('btn-publish-map');
+    const btnShareLink = document.getElementById('btn-share-link');
+    const btnLockSession = document.getElementById('btn-lock-session');
+
+    // Viewer Info Card Elements
+    const viewerInfoCard = document.getElementById('viewer-info-card');
+    const viewerCardClose = document.getElementById('viewer-card-close');
+    const viewerCardTitle = document.getElementById('viewer-card-title');
+    const viewerCardType = document.getElementById('viewer-card-type');
+    const viewerCardColorDot = document.getElementById('viewer-card-color-dot');
+    const viewerCardColorName = document.getElementById('viewer-card-color-name');
+    const viewerCardNoteBox = document.getElementById('viewer-card-note-box');
+    const viewerCardNote = document.getElementById('viewer-card-note');
+    const viewerCardPhotoBox = document.getElementById('viewer-card-photo-box');
+    const viewerCardPhotoImg = document.getElementById('viewer-card-photo-img');
+    const viewerCardPhotoWrap = document.getElementById('viewer-card-photo-wrap');
+    const btnViewerCardPhotoZoom = document.getElementById('btn-viewer-card-photo-zoom');
+    const viewerCardConnList = document.getElementById('viewer-card-conn-list');
+
+    // Toast Notification System
+    const toastNotification = document.getElementById('toast-notification');
+    const toastIcon = document.getElementById('toast-icon');
+    const toastText = document.getElementById('toast-text');
+    let toastTimeout = null;
+
+    function showToast(msg, icon = 'ℹ️', duration = 3500) {
+      if (!toastNotification) return;
+      if (toastIcon) toastIcon.textContent = icon;
+      if (toastText) toastText.textContent = msg;
+      toastNotification.classList.remove('hidden');
+      toastNotification.classList.add('flex');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toastNotification.classList.add('hidden');
+        toastNotification.classList.remove('flex');
+      }, duration);
+    }
+
+    // Role Application Engine
+    function setRole(role) {
+      state.currentRole = role;
+      state.isReadOnly = (role !== 'editor');
+      try {
+        sessionStorage.setItem('dw3_auth_role', role);
+      } catch (err) {}
+
+      if (role === 'editor') {
+        if (sidebarAside) sidebarAside.classList.remove('hidden');
+        if (editorControlsGroup) {
+          editorControlsGroup.classList.remove('hidden');
+          editorControlsGroup.classList.add('flex');
+        }
+        if (editorModeBadge) {
+          editorModeBadge.classList.remove('hidden');
+          editorModeBadge.classList.add('flex');
+        }
+        if (viewerModeBadge) {
+          viewerModeBadge.classList.add('hidden');
+          viewerModeBadge.classList.remove('flex');
+        }
+        if (btnUnlockEditor) btnUnlockEditor.classList.add('hidden');
+        if (saveBadge) {
+          saveBadge.classList.remove('hidden');
+          saveBadge.classList.add('flex');
+        }
+        // In editor mode, hide viewer search panel so inspector can be used
+        if (viewerSearchPanel) {
+          viewerSearchPanel.classList.add('hidden');
+          viewerSearchPanel.classList.remove('flex');
+        }
+        if (viewport) viewport.style.cursor = 'crosshair';
+        document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'grab');
+      } else {
+        // VIEW-ONLY MODE (Friends / Players)
+        if (sidebarAside) sidebarAside.classList.add('hidden');
+        if (editorControlsGroup) {
+          editorControlsGroup.classList.add('hidden');
+          editorControlsGroup.classList.remove('flex');
+        }
+        if (editorModeBadge) {
+          editorModeBadge.classList.add('hidden');
+          editorModeBadge.classList.remove('flex');
+        }
+        if (viewerModeBadge) {
+          viewerModeBadge.classList.remove('hidden');
+          viewerModeBadge.classList.add('flex');
+        }
+        if (btnUnlockEditor) btnUnlockEditor.classList.remove('hidden');
+        if (saveBadge) {
+          saveBadge.classList.add('hidden');
+          saveBadge.classList.remove('flex');
+        }
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        // In viewers mode, show the search navigator on the right side!
+        if (viewerSearchPanel) {
+          viewerSearchPanel.classList.remove('hidden');
+          viewerSearchPanel.classList.add('flex');
+          if (typeof renderSearchResults === 'function') renderSearchResults();
+        }
+        if (viewport) viewport.style.cursor = 'grab';
+        document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'pointer');
+      }
+      renderAll();
+    }
+
+    // Eye button toggle listener
+    if (btnToggleGatePw) {
+      btnToggleGatePw.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const inp = document.getElementById('gate-password-input');
+        if (!inp) return;
+        if (inp.type === 'password') {
+          inp.type = 'text';
+          btnToggleGatePw.textContent = '🔒';
+        } else {
+          inp.type = 'password';
+          btnToggleGatePw.textContent = '👁️';
+        }
+      });
+    }
+
+    // Password Gate Form Submission
+    if (passwordForm) {
+      passwordForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const inp = document.getElementById('gate-password-input');
+        if (!inp) return;
+        const val = inp.value.trim();
+        if (val === PASSWORDS.VIEWER) {
+          if (gateErrorMsg) gateErrorMsg.classList.add('hidden');
+          if (passwordGate) passwordGate.classList.add('hidden');
+          setRole('viewer');
+          showToast('Access Granted! Viewing circuit network.', '🔓');
+        } else if (val === PASSWORDS.EDITOR) {
+          if (gateErrorMsg) gateErrorMsg.classList.add('hidden');
+          if (passwordGate) passwordGate.classList.add('hidden');
+          setRole('editor');
+          showToast('Administrator Access Granted! Editor unlocked.', '⚡');
+        } else {
+          if (gateErrorMsg) gateErrorMsg.classList.remove('hidden');
+          inp.classList.add('ring-2', 'ring-rose-500');
+          setTimeout(() => inp.classList.remove('ring-2', 'ring-rose-500'), 1500);
+        }
+      });
+    }
+
+    // Unlock Editor Button
+    if (btnUnlockEditor) {
+      btnUnlockEditor.addEventListener('click', () => {
+        const pass = prompt('Enter Administrator Passcode to unlock Editor mode:');
+        if (pass === PASSWORDS.EDITOR) {
+          setRole('editor');
+          showToast('Editor mode unlocked! You can now edit rooms.', '⚡');
+        } else if (pass !== null) {
+          alert('Invalid passcode. Only the map author can edit.');
+        }
+      });
+    }
+
+    // Switch to Viewer Preview
+    if (btnSwitchViewer) {
+      btnSwitchViewer.addEventListener('click', () => {
+        setRole('viewer');
+        showToast('Switched to View-Only mode. Click "Editor Login" to return.', '👁️');
+      });
+    }
+
+    // Lock Session
+    if (btnLockSession) {
+      btnLockSession.addEventListener('click', () => {
+        try { sessionStorage.removeItem('dw3_auth_role'); } catch(err){}
+        if (passwordGate) passwordGate.classList.remove('hidden');
+        const inp = document.getElementById('gate-password-input');
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
+      });
+    }
+
+    // Viewer Card Close
+    if (viewerCardClose) {
+      viewerCardClose.addEventListener('click', () => {
+        if (viewerInfoCard) {
+          viewerInfoCard.classList.add('hidden');
+          viewerInfoCard.classList.remove('flex');
+        }
+      });
+    }
+
+    // Viewer Card Photo Zoom to Lightbox
+    if (btnViewerCardPhotoZoom) {
+      btnViewerCardPhotoZoom.addEventListener('click', () => {
+        if (viewerCardPhotoImg && viewerCardPhotoImg.src) {
+          openLightbox(viewerCardPhotoImg.src, viewerCardTitle ? viewerCardTitle.textContent : 'Room Screenshot');
+        }
+      });
+    }
+    if (viewerCardPhotoWrap) {
+      viewerCardPhotoWrap.addEventListener('click', () => {
+        if (viewerCardPhotoImg && viewerCardPhotoImg.src) {
+          openLightbox(viewerCardPhotoImg.src, viewerCardTitle ? viewerCardTitle.textContent : 'Room Screenshot');
+        }
+      });
+    }
+
+    // Function to populate and display Viewer Info Card for Friends
+    function showViewerInfoCard(node) {
+      if (!viewerInfoCard || !node) return;
+      const title = node.label || node.title || 'Circuit Room';
+      if (viewerCardTitle) viewerCardTitle.textContent = title;
+
+      const meta = (typeof LAYOUT_METAS !== 'undefined' && LAYOUT_METAS[node.layoutId]) ? LAYOUT_METAS[node.layoutId] : null;
+      const typeName = meta ? meta.name : (node.type || 'ROOM');
+      if (viewerCardType) viewerCardType.textContent = typeName;
+
+      const color = node.color || '#38bdf8';
+      if (viewerCardColorDot) viewerCardColorDot.style.backgroundColor = color;
+      if (viewerCardColorName) viewerCardColorName.textContent = color;
+
+      const noteText = (node.subtext || node.note || '').trim();
+      if (noteText && viewerCardNote && viewerCardNoteBox) {
+        viewerCardNote.textContent = noteText;
+        viewerCardNoteBox.classList.remove('hidden');
+      } else if (viewerCardNoteBox) {
+        viewerCardNoteBox.classList.add('hidden');
+      }
+
+      const photoSrc = node.image || node.photo || '';
+      if (photoSrc && viewerCardPhotoImg && viewerCardPhotoBox) {
+        viewerCardPhotoImg.src = photoSrc;
+        viewerCardPhotoBox.classList.remove('hidden');
+      } else if (viewerCardPhotoBox) {
+        viewerCardPhotoBox.classList.add('hidden');
+      }
+
+      if (viewerCardConnList) {
+        viewerCardConnList.innerHTML = '';
+        const conns = state.edges.filter(e => e.from === node.id || e.to === node.id);
+        if (conns.length === 0) {
+          viewerCardConnList.innerHTML = '<div class="text-[10px] text-slate-500 italic">No connected wires</div>';
+        } else {
+          conns.forEach(c => {
+            const isOut = (c.from === node.id);
+            const otherId = isOut ? c.to : c.from;
+            const otherNode = state.nodes.find(n => n.id === otherId);
+            const otherName = otherNode ? (otherNode.label || otherNode.title || otherId) : ('Room ' + otherId);
+            const div = document.createElement('div');
+            div.className = 'px-2 py-1 rounded bg-slate-950/80 border border-slate-800 flex items-center justify-between text-[11px] text-slate-300';
+            div.innerHTML = `
+              <span class="font-sans font-medium">${otherName}</span>
+              <span class="text-[9px] px-1 py-0.2 rounded bg-slate-800 font-mono text-cyan-300">${isOut ? '→ ' + (c.toPort || 'in') : '← ' + (c.fromPort || 'out')}</span>
+            `;
+            viewerCardConnList.appendChild(div);
+          });
+        }
+      }
+
+      viewerInfoCard.classList.remove('hidden');
+      viewerInfoCard.classList.add('flex');
+    }
+
+    // Publish & Share Functions
+    if (btnPublishMap) {
+      btnPublishMap.addEventListener('click', () => {
+        saveLiveMap();
+      });
+    }
+    if (btnShareLink) {
+      btnShareLink.addEventListener('click', () => {
+        copyShareLink();
+      });
+    }
+
+    function saveLiveMap() {
+      try {
+        const payload = JSON.stringify({ nodes: state.nodes, edges: state.edges, version: 1.2 });
+        localStorage.setItem('dw3_published_map', payload);
+        showToast('Live Map saved! Friends will load this layout.', '🚀');
+      } catch (e) {
+        showToast('Error saving map: ' + e.message, '⚠️');
+      }
+    }
+
+    function copyShareLink() {
+      try {
+        const payload = JSON.stringify({ nodes: state.nodes, edges: state.edges });
+        const encoded = btoa(encodeURIComponent(payload));
+        const url = new URL(window.location.href);
+        url.searchParams.set('map', encoded);
+        navigator.clipboard.writeText(url.toString()).then(() => {
+          showToast('Shareable link copied with map data! Send to friends.', '🔗');
+        }).catch(() => {
+          prompt('Copy this link for your friends:', url.toString());
+        });
+      } catch (err) {
+        showToast('Could not encode map link: ' + err.message, '⚠️');
+      }
+    }
+
+    
+    // =========================================================================
+    // VIEWER SEARCH & NAVIGATOR ENGINE (ITEMS, DIGIMON, DDR, TAMERS, ROOMS)
+    // =========================================================================
+    const viewerSearchPanel = document.getElementById('viewer-search-panel');
+    const searchPanelBody = document.getElementById('search-panel-body');
+    const btnToggleSearchPanel = document.getElementById('btn-toggle-search-panel');
+    const searchIntelInput = document.getElementById('search-intel-input');
+    const btnClearSearch = document.getElementById('btn-clear-search');
+    const searchResultsList = document.getElementById('search-results-list');
+    const searchResultsBadge = document.getElementById('search-results-badge');
+    const searchFilterPills = document.getElementById('search-filter-pills');
+
+    let currentSearchCategory = 'all';
+    let isSearchPanelMinimized = false;
+
+    // Toggle minimize
+    if (btnToggleSearchPanel && searchPanelBody) {
+      btnToggleSearchPanel.addEventListener('click', () => {
+        isSearchPanelMinimized = !isSearchPanelMinimized;
+        searchPanelBody.classList.toggle('hidden', isSearchPanelMinimized);
+        btnToggleSearchPanel.textContent = isSearchPanelMinimized ? '+' : '—';
+      });
+    }
+
+    // Clear Search Input
+    if (btnClearSearch && searchIntelInput) {
+      btnClearSearch.addEventListener('click', () => {
+        searchIntelInput.value = '';
+        btnClearSearch.classList.add('hidden');
+        searchIntelInput.focus();
+        renderSearchResults();
+      });
+    }
+
+    // Input Search Listener
+    if (searchIntelInput) {
+      searchIntelInput.addEventListener('input', () => {
+        if (btnClearSearch) {
+          btnClearSearch.classList.toggle('hidden', searchIntelInput.value.trim().length === 0);
+        }
+        renderSearchResults();
+      });
+    }
+
+    // Category Filter Pills
+    if (searchFilterPills) {
+      searchFilterPills.addEventListener('click', (e) => {
+        const btn = e.target.closest('.search-pill');
+        if (!btn) return;
+        currentSearchCategory = btn.dataset.cat || 'all';
+        searchFilterPills.querySelectorAll('.search-pill').forEach(b => {
+          const isActive = (b === btn);
+          b.classList.toggle('active', isActive);
+          if (!isActive) {
+            b.classList.remove('bg-cyan-900/80', 'border-cyan-400', 'text-cyan-200', 'font-bold');
+            b.classList.add('bg-slate-800/80', 'border-slate-700', 'text-slate-300');
+          } else {
+            b.classList.add('bg-cyan-900/80', 'border-cyan-400', 'text-cyan-200', 'font-bold');
+            b.classList.remove('bg-slate-800/80', 'border-slate-700', 'text-slate-300');
+          }
+        });
+        renderSearchResults();
+      });
+    }
+
+    // Categorization Helper
+    function classifyNode(node) {
+      const cats = ['all'];
+      const lbl = (node.label || '').toLowerCase();
+      const sub = (node.subtext || '').toLowerCase();
+      const full = lbl + ' ' + sub;
+
+      if (full.includes('chest') || full.includes('item') || full.includes('fang') || full.includes('rod') || full.includes('ticket') || full.includes('canon') || full.includes('charge')) {
+        cats.push('item');
+      }
+      if (full.includes('ddr') || full.includes('digimon') || full.includes('kotemon') || full.includes('patamon') || full.includes('veemon') || full.includes('kumamon')) {
+        cats.push('ddr');
+      }
+      if (full.includes('tamer') || full.includes('leader') || full.includes('player') || full.includes('trainer')) {
+        cats.push('tamer');
+      }
+      if (node.layoutId === 1 || node.layoutId === 2 || full.includes('park') || full.includes('grave') || full.includes('mine') || full.includes('badland') || full.includes('forest') || full.includes('cape') || full.includes('entry')) {
+        cats.push('location');
+      }
+      return cats;
+    }
+
+    // Smooth Auto-Center and Focus on Node
+    function focusOnNode(nodeId) {
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+
+      const targetScale = Math.max(state.view.scale, 1.0);
+      const vW = viewport.clientWidth;
+      const vH = viewport.clientHeight;
+      const targetX = (vW / 2) - ((node.x + node.w / 2) * targetScale);
+      const targetY = (vH / 2) - ((node.y + node.h / 2) * targetScale);
+
+      // Smooth camera pan
+      canvasWorld.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+      state.view.x = targetX;
+      state.view.y = targetY;
+      state.view.scale = targetScale;
+      updateTransform();
+
+      setTimeout(() => {
+        canvasWorld.style.transition = '';
+      }, 480);
+
+      // Pulse Highlight Animation on target node
+      document.querySelectorAll('.map-node').forEach(n => n.classList.remove('pulse-found'));
+      const nodeEl = document.getElementById(`node-${node.id}`);
+      if (nodeEl) {
+        nodeEl.classList.add('pulse-found');
+        setTimeout(() => {
+          nodeEl.classList.remove('pulse-found');
+        }, 3200);
+      }
+
+      state.selectedId = node.id;
+      renderEdges();
+    }
+
+    // Render Search Results List
+    function renderSearchResults() {
+      if (!searchResultsList) return;
+      searchResultsList.innerHTML = '';
+
+      const query = searchIntelInput ? searchIntelInput.value.trim().toLowerCase() : '';
+      const cat = currentSearchCategory;
+
+      const matches = state.nodes.filter(node => {
+        const cats = classifyNode(node);
+        if (cat !== 'all' && !cats.includes(cat)) {
+          return false;
+        }
+        if (!query) return true;
+
+        const lbl = (node.label || '').toLowerCase();
+        const sub = (node.subtext || '').toLowerCase();
+        const meta = LAYOUT_METAS[node.layoutId];
+        const typeName = (meta ? meta.name : '').toLowerCase();
+
+        return lbl.includes(query) || sub.includes(query) || typeName.includes(query) || node.id.toLowerCase().includes(query);
+      });
+
+      if (searchResultsBadge) {
+        searchResultsBadge.textContent = `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}`;
+      }
+
+      if (matches.length === 0) {
+        searchResultsList.innerHTML = `
+          <div class="py-6 text-center text-slate-500 font-mono text-[11px] space-y-1">
+            <div class="text-xl">⚠️</div>
+            <div>No matching locations found</div>
+            <div class="text-[10px] text-slate-600">Try searching "Venom", "Kumamon", "Chest", or "Park"</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Render each matching item card
+      matches.forEach(node => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'p-2 rounded-lg bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-cyan-500/70 cursor-pointer transition flex items-center justify-between gap-2 group';
+
+        const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
+        const isChest = (node.subtext && node.subtext.toLowerCase().includes('chest')) || (node.label && node.label.toLowerCase().includes('chest'));
+        const isDDR = (node.subtext && node.subtext.toLowerCase().includes('ddr')) || (node.label && node.label.toLowerCase().includes('ddr'));
+        const hasPhoto = Boolean(node.image);
+
+        // Badge label
+        let badgeHTML = '';
+        if (isChest) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-amber-950/90 border border-amber-500/60 text-[9px] text-amber-300 font-mono">📦 Chest</span>';
+        } else if (isDDR) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-purple-950/90 border border-purple-500/60 text-[9px] text-purple-300 font-mono">👾 DDR</span>';
+        } else if (node.layoutId === 1 || node.layoutId === 2) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-cyan-950/90 border border-cyan-500/60 text-[9px] text-cyan-300 font-mono">📍 Area</span>';
+        }
+
+        const mainTitle = node.label || node.subtext || `Room ${node.id.slice(-6)}`;
+        const secondary = (node.label && node.subtext) ? node.subtext : (meta ? meta.name : '');
+
+        itemEl.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-700" style="background-color: ${node.color || '#ffffff'}"></span>
+            <div class="min-w-0">
+              <div class="font-medium text-slate-200 group-hover:text-cyan-300 transition truncate text-[11px] flex items-center gap-1.5">
+                <span>${mainTitle}</span>
+                ${hasPhoto ? '<span class="text-[9px] text-cyan-400" title="Includes Screenshot">📸</span>' : ''}
+              </div>
+              ${secondary ? `<div class="text-[10px] text-slate-400 truncate">${secondary}</div>` : ''}
+            </div>
+          </div>
+          <div class="shrink-0 flex items-center gap-1">
+            ${badgeHTML}
+            <span class="text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition text-[11px]">→</span>
+          </div>
+        `;
+
+        itemEl.addEventListener('click', () => {
+          focusOnNode(node.id);
+        });
+
+        searchResultsList.appendChild(itemEl);
+      });
+    }
 
     function getPortCoords(node, port) {
       if (!node || !port) return { x: 0, y: 0 };
@@ -770,6 +1507,15 @@
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+      // READ-ONLY / VIEWER MODE GUARD: Friends cannot edit via shortcuts!
+      if (state.isReadOnly) {
+        if (e.key === 'Escape') {
+          selectRoom(null);
+          closeLightbox();
+        }
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -864,96 +1610,21 @@
     }
 
     async function loadDraftFromStorage() {
-      const candidates = [];
-
-      // 1. Comprehensive IndexedDB Auto-Discovery across all DBs
-      if (window.indexedDB && indexedDB.databases) {
-        try {
-          const dbs = await indexedDB.databases();
-          for (const dbInfo of dbs) {
-            if (!dbInfo.name) continue;
-            try {
-              const db = await new Promise((res) => {
-                const r = indexedDB.open(dbInfo.name);
-                r.onsuccess = () => res(r.result);
-                r.onerror = () => res(null);
-              });
-              if (db) {
-                for (const storeName of Array.from(db.objectStoreNames)) {
-                  try {
-                    const records = await new Promise((res) => {
-                      const tx = db.transaction(storeName, 'readonly');
-                      const store = tx.objectStore(storeName);
-                      const req = store.getAll();
-                      req.onsuccess = () => res(req.result);
-                      req.onerror = () => res([]);
-                    });
-                    for (const rec of records) {
-                      if (rec && Array.isArray(rec.nodes) && rec.nodes.length > 0) {
-                        candidates.push({
-                          source: `${dbInfo.name} -> ${storeName}`,
-                          nodes: rec.nodes,
-                          edges: rec.edges || [],
-                          view: rec.view || null
-                        });
-                      }
-                    }
-                  } catch (e) {}
-                }
-              }
-            } catch (e) {}
-          }
-        } catch (e) {}
-      }
-
-      // 2. Direct fallback to known IndexedDB: DW3_Cartographer_DB
       try {
         const db = await openDatabase();
         if (db) {
-          const rec = await new Promise((res) => {
+          return new Promise((resolve) => {
             const tx = db.transaction(STORE_NAME, 'readonly');
             const req = tx.objectStore(STORE_NAME).get('dw3_active_draft');
-            req.onsuccess = () => res(req.result);
-            req.onerror = () => res(null);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
           });
-          if (rec && Array.isArray(rec.nodes) && rec.nodes.length > 0) {
-            candidates.push({ source: 'DW3_Cartographer_DB', ...rec });
-          }
         }
-      } catch (e) {}
-
-      // 3. Check all LocalStorage keys
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        try {
-          const val = localStorage.getItem(k);
-          if (val && val.startsWith('{') && val.includes('"nodes"')) {
-            const parsed = JSON.parse(val);
-            if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
-              candidates.push({ source: `localStorage[${k}]`, ...parsed });
-            }
-          }
-        } catch (e) {}
-      }
-
-      console.log(`Found ${candidates.length} map drafts in browser storage:`, candidates);
-
-      if (candidates.length > 0) {
-        // Pick the draft with the most nodes
-        candidates.sort((a, b) => (b.nodes.length - a.nodes.length));
-        const best = candidates[0];
-        
-        // Show banner
-        const banner = document.getElementById('recovery-banner');
-        const bannerText = document.getElementById('recovery-banner-text');
-        if (banner && bannerText) {
-          bannerText.textContent = `Auto-Restored: ${best.nodes.length} rooms (${best.source || 'Storage'})`;
-          banner.classList.remove('hidden');
-          banner.classList.add('flex');
-        }
-        return best;
-      }
-      return null;
+      } catch (err) {}
+      try {
+        const raw = localStorage.getItem('dw3_draft_backup');
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
     }
 
     let autoSaveTimer = null;
@@ -1151,6 +1822,7 @@
     }
 
     function renderAll() {
+      if (viewerSearchPanel && !viewerSearchPanel.classList.contains('hidden') && typeof renderSearchResults === 'function') renderSearchResults();
       renderEdges();
       renderNodes();
       updateStats();
@@ -1513,6 +2185,8 @@
         }
 
         selectRoom(node.id);
+        // READ-ONLY / VIEWER MODE GUARD: Friends cannot drag rooms
+        if (state.isReadOnly) return;
         dragNode = node;
         hasMoved = false;
         const mouseX = (e.clientX - state.view.x) / state.view.scale;
@@ -1585,7 +2259,15 @@
         return;
       }
 
-      if (dragNode && hasMoved) triggerAutoSave();
+      if (dragNode && hasMoved) {
+        // Snap center X to 16px grid, and Y to 16px grid
+        const cx = dragNode.x + dragNode.w * 0.5;
+        const snappedCx = Math.round(cx / 16) * 16;
+        dragNode.x = Math.round(snappedCx - dragNode.w * 0.5);
+        dragNode.y = Math.round(dragNode.y / 16) * 16;
+        renderAll();
+        triggerAutoSave();
+      }
       dragNode = null;
       if (state.isPanning) {
         state.isPanning = false;
@@ -1622,13 +2304,19 @@
     }, { passive: false });
 
     // --- ROOM SELECTION & 1-CLICK 7-BRANCH ENGINE ---
-    function selectRoom(id) {
+        function selectRoom(id) {
       state.selectedId = id;
       document.querySelectorAll('.map-node').forEach(n => n.classList.remove('selected'));
 
       if (!id) {
-        inspector.classList.add('hidden');
-        inspector.classList.remove('flex');
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        if (viewerInfoCard) {
+          viewerInfoCard.classList.add('hidden');
+          viewerInfoCard.classList.remove('flex');
+        }
         return;
       }
 
@@ -1637,6 +2325,22 @@
 
       const node = state.nodes.find(n => n.id === id);
       if (!node) return;
+
+      // --- VIEW-ONLY / FRIEND PERSPECTIVE ---
+      if (state.isReadOnly) {
+        if (inspector) {
+          inspector.classList.add('hidden');
+          inspector.classList.remove('flex');
+        }
+        // Intel box removed per user request. Focus smoothly on node!
+        return;
+      }
+
+      // --- EDITOR / ADMIN PERSPECTIVE ---
+      if (viewerInfoCard) {
+        viewerInfoCard.classList.add('hidden');
+        viewerInfoCard.classList.remove('flex');
+      }
 
       const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
       const ports = LAYOUT_PORTS[node.layoutId] || [];
@@ -2024,13 +2728,12 @@
     });
 
     // Export JSON
-    const btnExport = document.getElementById('btn-export-json');
-    if (btnExport) {
-      btnExport.addEventListener('click', () => {
+    const btnExportEl = document.getElementById('btn-export-json');
+    if (btnExportEl) {
+      btnExportEl.addEventListener('click', () => {
         const payload = {
           nodes: state.nodes,
           edges: state.edges,
-          view: state.view,
           version: 1.2,
           exportedAt: new Date().toISOString()
         };
@@ -2041,15 +2744,19 @@
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
+        showToast('Map exported to dw3_circuit_map.json', '💾');
       });
     }
 
     // Import JSON
-    const btnImport = document.getElementById('btn-import-json');
-    const inputImport = document.getElementById('import-json-file');
-    if (btnImport && inputImport) {
-      btnImport.addEventListener('click', () => inputImport.click());
-      inputImport.addEventListener('change', (e) => {
+    const btnImportEl = document.getElementById('btn-import-json');
+    const inputImportFile = document.getElementById('import-json-file');
+    if (btnImportEl && inputImportFile) {
+      btnImportEl.addEventListener('click', () => {
+        inputImportFile.click();
+      });
+
+      inputImportFile.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -2059,20 +2766,20 @@
             if (data && Array.isArray(data.nodes)) {
               state.nodes = data.nodes;
               state.edges = data.edges || [];
-              if (data.view) state.view = data.view;
               renderAll();
-              updateTransform();
+              zoomToFit();
               triggerAutoSave();
-              alert(`Successfully loaded ${data.nodes.length} rooms and ${state.edges.length} connections!`);
+              saveLiveMap();
+              showToast('Map loaded successfully from JSON!', '📂');
             } else {
-              alert('Invalid map JSON file.');
+              alert('Invalid map JSON format: missing nodes array.');
             }
           } catch (err) {
-            alert('Error parsing JSON: ' + err.message);
+            alert('Failed to parse JSON file: ' + err.message);
           }
         };
         reader.readAsText(file);
-        inputImport.value = '';
+        inputImportFile.value = '';
       });
     }
 

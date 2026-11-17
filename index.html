@@ -264,6 +264,27 @@
       background: #334155;
       border-radius: 3px;
     }
+  
+    /* --- PULSE ANIMATION FOR LOCATING ROOMS --- */
+    @keyframes pulseFound {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.95), 0 0 25px rgba(6, 182, 212, 0.8); }
+      35% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(6, 182, 212, 0.35), 0 0 45px rgba(6, 182, 212, 0.9); }
+      70% { transform: scale(1.02); box-shadow: 0 0 0 20px rgba(6, 182, 212, 0), 0 0 30px rgba(6, 182, 212, 0.4); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+    }
+    .pulse-found {
+      animation: pulseFound 1.1s ease-in-out infinite !important;
+      z-index: 60 !important;
+      outline: 3.5px solid #38bdf8 !important;
+      outline-offset: 3px !important;
+    }
+    .search-pill.active {
+      background-color: rgba(22, 78, 99, 0.9) !important;
+      border-color: #38bdf8 !important;
+      color: #67e8f9 !important;
+      font-weight: 700 !important;
+    }
+
   </style>
   <script src="map_data.js"></script>
 </head>
@@ -336,19 +357,20 @@
         <button id="btn-switch-viewer" title="Preview as View-Only (Friend's perspective)" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded transition text-[11px]">
           👁️ Preview View-Only
         </button>
+              <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+        <button id="btn-export-json" title="Download map JSON backup" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px]">
+          💾 Export
+        </button>
+        <button id="btn-import-json" title="Import map JSON file" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px] flex items-center gap-1">
+          <span>📂</span> Import
+        </button>
+        <input type="file" id="import-json-file" accept=".json" class="hidden" />
       </div>
 
       <!-- Common Controls (Available in both modes) -->
       <button id="btn-fit" title="Fit view to all rooms" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded font-medium flex items-center gap-1 transition text-[11px]">
         <span>🔍</span> Fit View
       </button>
-      <button id="btn-export-json" title="Download map JSON backup" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px]">
-        💾 Export
-      </button>
-      <button id="btn-import-json" title="Import map JSON file" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded transition text-[11px] flex items-center gap-1">
-        <span>📂</span> Import
-      </button>
-      <input type="file" id="import-json-file" accept=".json" class="hidden" />
       
       <!-- Unlock Editor Button (Visible in Viewer Mode) -->
       <button id="btn-unlock-editor" title="Enter Admin Password to Edit Maps" class="px-2 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 text-amber-300 rounded font-bold flex items-center gap-1.5 transition text-[11px]">
@@ -638,20 +660,63 @@
     </div>
   </div>
 
-        <!-- READ-ONLY ROOM INTEL CARD (FOR VIEWERS & FRIENDS) -->
-      <div id="viewer-info-card" class="absolute top-4 right-4 w-84 bg-slate-900/95 border border-cyan-500/50 rounded-xl p-4 shadow-2xl backdrop-blur hidden z-30 flex-col gap-3 text-xs max-h-[92vh] overflow-y-auto font-mono">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2 shrink-0">
-          <div class="font-bold text-cyan-300 flex items-center gap-2">
-            <span>📡</span> Circuit Node Intel
+              <!-- VIEWER MODE SEARCH & NAVIGATOR PANEL (RIGHT SIDE) -->
+      <aside id="viewer-search-panel" class="absolute top-3 right-3 w-80 max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-4.5rem)] bg-slate-900/95 border border-cyan-500/50 rounded-xl shadow-2xl backdrop-blur-md flex flex-col z-30 font-mono text-xs overflow-hidden transition-all duration-300">
+        <!-- Panel Header -->
+        <div class="px-3 py-2.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between shrink-0 select-none">
+          <div class="flex items-center gap-2 font-bold text-cyan-300">
+            <span class="text-sm">🔍</span>
+            <span class="tracking-wider uppercase text-[11px]">Circuit Navigator</span>
           </div>
-          <button id="viewer-card-close" class="text-slate-400 hover:text-slate-200 text-sm px-1 font-bold">&times;</button>
+          <div class="flex items-center gap-1.5">
+            <span id="search-results-badge" class="px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-500/50 text-[10px] text-cyan-300">
+              68 entries
+            </span>
+            <button id="btn-toggle-search-panel" type="button" title="Minimize / Expand Search" class="text-slate-400 hover:text-slate-200 text-xs px-1.5 py-0.5 rounded hover:bg-slate-800 transition">
+              —
+            </button>
+          </div>
         </div>
 
-        <div class="space-y-2.5">
-          <div>
-            <div class="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-0.5">Room Location</div>
-            <div id="viewer-card-title" class="text-sm font-bold text-slate-100 font-sans"></div>
+        <div id="search-panel-body" class="flex flex-col flex-1 overflow-hidden p-3 gap-2.5">
+          <!-- Search Input Box -->
+          <div class="relative shrink-0">
+            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">🔎</span>
+            <input id="search-intel-input" type="text" placeholder="Type Item, Digimon, DDR, Tamer..." autocomplete="off" spellcheck="false"
+              class="w-full pl-8 pr-7 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 text-xs focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 placeholder:text-slate-500 transition font-sans" />
+            <button id="btn-clear-search" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-xs px-1 hidden" title="Clear search">✕</button>
           </div>
+
+          <!-- Category Filter Pills -->
+          <div class="flex items-center gap-1 overflow-x-auto pb-1 shrink-0 no-scrollbar text-[10px]" id="search-filter-pills">
+            <button type="button" data-cat="all" class="search-pill active px-2 py-0.5 rounded-full bg-cyan-900/80 border border-cyan-400 text-cyan-200 font-bold shrink-0 transition">
+              All
+            </button>
+            <button type="button" data-cat="item" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>📦</span> Items
+            </button>
+            <button type="button" data-cat="ddr" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>👾</span> DDR/Digimon
+            </button>
+            <button type="button" data-cat="tamer" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>👤</span> Tamers
+            </button>
+            <button type="button" data-cat="location" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>📍</span> Areas
+            </button>
+          </div>
+
+          <!-- Scrollable Results List -->
+          <div id="search-results-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 font-sans text-xs">
+            <!-- Dynamically populated entries -->
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-500 flex items-center justify-between shrink-0 font-mono">
+            <span>Click any item to jump</span>
+            <span class="text-cyan-400/80">Auto-Center 🎯</span>
+          </div>
+        </div>
+      </aside>
           <div class="flex items-center justify-between">
             <span id="viewer-card-type" class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300 text-[10px] font-bold"></span>
             <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
@@ -913,14 +978,15 @@
           saveBadge.classList.remove('hidden');
           saveBadge.classList.add('flex');
         }
-        if (viewerInfoCard) {
-          viewerInfoCard.classList.add('hidden');
-          viewerInfoCard.classList.remove('flex');
+        // In editor mode, hide viewer search panel so inspector can be used
+        if (viewerSearchPanel) {
+          viewerSearchPanel.classList.add('hidden');
+          viewerSearchPanel.classList.remove('flex');
         }
         if (viewport) viewport.style.cursor = 'crosshair';
         document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'grab');
       } else {
-        // VIEW-ONLY MODE (Friends)
+        // VIEW-ONLY MODE (Friends / Players)
         if (sidebarAside) sidebarAside.classList.add('hidden');
         if (editorControlsGroup) {
           editorControlsGroup.classList.add('hidden');
@@ -942,6 +1008,12 @@
         if (inspector) {
           inspector.classList.add('hidden');
           inspector.classList.remove('flex');
+        }
+        // In viewers mode, show the search navigator on the right side!
+        if (viewerSearchPanel) {
+          viewerSearchPanel.classList.remove('hidden');
+          viewerSearchPanel.classList.add('flex');
+          if (typeof renderSearchResults === 'function') renderSearchResults();
         }
         if (viewport) viewport.style.cursor = 'grab';
         document.querySelectorAll('.map-node').forEach(n => n.style.cursor = 'pointer');
@@ -1143,6 +1215,216 @@
       } catch (err) {
         showToast('Could not encode map link: ' + err.message, '⚠️');
       }
+    }
+
+    
+    // =========================================================================
+    // VIEWER SEARCH & NAVIGATOR ENGINE (ITEMS, DIGIMON, DDR, TAMERS, ROOMS)
+    // =========================================================================
+    const viewerSearchPanel = document.getElementById('viewer-search-panel');
+    const searchPanelBody = document.getElementById('search-panel-body');
+    const btnToggleSearchPanel = document.getElementById('btn-toggle-search-panel');
+    const searchIntelInput = document.getElementById('search-intel-input');
+    const btnClearSearch = document.getElementById('btn-clear-search');
+    const searchResultsList = document.getElementById('search-results-list');
+    const searchResultsBadge = document.getElementById('search-results-badge');
+    const searchFilterPills = document.getElementById('search-filter-pills');
+
+    let currentSearchCategory = 'all';
+    let isSearchPanelMinimized = false;
+
+    // Toggle minimize
+    if (btnToggleSearchPanel && searchPanelBody) {
+      btnToggleSearchPanel.addEventListener('click', () => {
+        isSearchPanelMinimized = !isSearchPanelMinimized;
+        searchPanelBody.classList.toggle('hidden', isSearchPanelMinimized);
+        btnToggleSearchPanel.textContent = isSearchPanelMinimized ? '+' : '—';
+      });
+    }
+
+    // Clear Search Input
+    if (btnClearSearch && searchIntelInput) {
+      btnClearSearch.addEventListener('click', () => {
+        searchIntelInput.value = '';
+        btnClearSearch.classList.add('hidden');
+        searchIntelInput.focus();
+        renderSearchResults();
+      });
+    }
+
+    // Input Search Listener
+    if (searchIntelInput) {
+      searchIntelInput.addEventListener('input', () => {
+        if (btnClearSearch) {
+          btnClearSearch.classList.toggle('hidden', searchIntelInput.value.trim().length === 0);
+        }
+        renderSearchResults();
+      });
+    }
+
+    // Category Filter Pills
+    if (searchFilterPills) {
+      searchFilterPills.addEventListener('click', (e) => {
+        const btn = e.target.closest('.search-pill');
+        if (!btn) return;
+        currentSearchCategory = btn.dataset.cat || 'all';
+        searchFilterPills.querySelectorAll('.search-pill').forEach(b => {
+          const isActive = (b === btn);
+          b.classList.toggle('active', isActive);
+          if (!isActive) {
+            b.classList.remove('bg-cyan-900/80', 'border-cyan-400', 'text-cyan-200', 'font-bold');
+            b.classList.add('bg-slate-800/80', 'border-slate-700', 'text-slate-300');
+          } else {
+            b.classList.add('bg-cyan-900/80', 'border-cyan-400', 'text-cyan-200', 'font-bold');
+            b.classList.remove('bg-slate-800/80', 'border-slate-700', 'text-slate-300');
+          }
+        });
+        renderSearchResults();
+      });
+    }
+
+    // Categorization Helper
+    function classifyNode(node) {
+      const cats = ['all'];
+      const lbl = (node.label || '').toLowerCase();
+      const sub = (node.subtext || '').toLowerCase();
+      const full = lbl + ' ' + sub;
+
+      if (full.includes('chest') || full.includes('item') || full.includes('fang') || full.includes('rod') || full.includes('ticket') || full.includes('canon') || full.includes('charge')) {
+        cats.push('item');
+      }
+      if (full.includes('ddr') || full.includes('digimon') || full.includes('kotemon') || full.includes('patamon') || full.includes('veemon') || full.includes('kumamon')) {
+        cats.push('ddr');
+      }
+      if (full.includes('tamer') || full.includes('leader') || full.includes('player') || full.includes('trainer')) {
+        cats.push('tamer');
+      }
+      if (node.layoutId === 1 || node.layoutId === 2 || full.includes('park') || full.includes('grave') || full.includes('mine') || full.includes('badland') || full.includes('forest') || full.includes('cape') || full.includes('entry')) {
+        cats.push('location');
+      }
+      return cats;
+    }
+
+    // Smooth Auto-Center and Focus on Node
+    function focusOnNode(nodeId) {
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+
+      const targetScale = Math.max(state.view.scale, 1.0);
+      const vW = viewport.clientWidth;
+      const vH = viewport.clientHeight;
+      const targetX = (vW / 2) - ((node.x + node.w / 2) * targetScale);
+      const targetY = (vH / 2) - ((node.y + node.h / 2) * targetScale);
+
+      // Smooth camera pan
+      canvasWorld.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+      state.view.x = targetX;
+      state.view.y = targetY;
+      state.view.scale = targetScale;
+      updateTransform();
+
+      setTimeout(() => {
+        canvasWorld.style.transition = '';
+      }, 480);
+
+      // Pulse Highlight Animation on target node
+      document.querySelectorAll('.map-node').forEach(n => n.classList.remove('pulse-found'));
+      const nodeEl = document.getElementById(`node-${node.id}`);
+      if (nodeEl) {
+        nodeEl.classList.add('pulse-found');
+        setTimeout(() => {
+          nodeEl.classList.remove('pulse-found');
+        }, 3200);
+      }
+
+      state.selectedId = node.id;
+      renderEdges();
+    }
+
+    // Render Search Results List
+    function renderSearchResults() {
+      if (!searchResultsList) return;
+      searchResultsList.innerHTML = '';
+
+      const query = searchIntelInput ? searchIntelInput.value.trim().toLowerCase() : '';
+      const cat = currentSearchCategory;
+
+      const matches = state.nodes.filter(node => {
+        const cats = classifyNode(node);
+        if (cat !== 'all' && !cats.includes(cat)) {
+          return false;
+        }
+        if (!query) return true;
+
+        const lbl = (node.label || '').toLowerCase();
+        const sub = (node.subtext || '').toLowerCase();
+        const meta = LAYOUT_METAS[node.layoutId];
+        const typeName = (meta ? meta.name : '').toLowerCase();
+
+        return lbl.includes(query) || sub.includes(query) || typeName.includes(query) || node.id.toLowerCase().includes(query);
+      });
+
+      if (searchResultsBadge) {
+        searchResultsBadge.textContent = `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}`;
+      }
+
+      if (matches.length === 0) {
+        searchResultsList.innerHTML = `
+          <div class="py-6 text-center text-slate-500 font-mono text-[11px] space-y-1">
+            <div class="text-xl">⚠️</div>
+            <div>No matching locations found</div>
+            <div class="text-[10px] text-slate-600">Try searching "Venom", "Kumamon", "Chest", or "Park"</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Render each matching item card
+      matches.forEach(node => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'p-2 rounded-lg bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-cyan-500/70 cursor-pointer transition flex items-center justify-between gap-2 group';
+
+        const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
+        const isChest = (node.subtext && node.subtext.toLowerCase().includes('chest')) || (node.label && node.label.toLowerCase().includes('chest'));
+        const isDDR = (node.subtext && node.subtext.toLowerCase().includes('ddr')) || (node.label && node.label.toLowerCase().includes('ddr'));
+        const hasPhoto = Boolean(node.image);
+
+        // Badge label
+        let badgeHTML = '';
+        if (isChest) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-amber-950/90 border border-amber-500/60 text-[9px] text-amber-300 font-mono">📦 Chest</span>';
+        } else if (isDDR) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-purple-950/90 border border-purple-500/60 text-[9px] text-purple-300 font-mono">👾 DDR</span>';
+        } else if (node.layoutId === 1 || node.layoutId === 2) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-cyan-950/90 border border-cyan-500/60 text-[9px] text-cyan-300 font-mono">📍 Area</span>';
+        }
+
+        const mainTitle = node.label || node.subtext || `Room ${node.id.slice(-6)}`;
+        const secondary = (node.label && node.subtext) ? node.subtext : (meta ? meta.name : '');
+
+        itemEl.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-700" style="background-color: ${node.color || '#ffffff'}"></span>
+            <div class="min-w-0">
+              <div class="font-medium text-slate-200 group-hover:text-cyan-300 transition truncate text-[11px] flex items-center gap-1.5">
+                <span>${mainTitle}</span>
+                ${hasPhoto ? '<span class="text-[9px] text-cyan-400" title="Includes Screenshot">📸</span>' : ''}
+              </div>
+              ${secondary ? `<div class="text-[10px] text-slate-400 truncate">${secondary}</div>` : ''}
+            </div>
+          </div>
+          <div class="shrink-0 flex items-center gap-1">
+            ${badgeHTML}
+            <span class="text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition text-[11px]">→</span>
+          </div>
+        `;
+
+        itemEl.addEventListener('click', () => {
+          focusOnNode(node.id);
+        });
+
+        searchResultsList.appendChild(itemEl);
+      });
     }
 
     function getPortCoords(node, port) {
@@ -1540,6 +1822,7 @@
     }
 
     function renderAll() {
+      if (viewerSearchPanel && !viewerSearchPanel.classList.contains('hidden') && typeof renderSearchResults === 'function') renderSearchResults();
       renderEdges();
       renderNodes();
       updateStats();
@@ -2049,7 +2332,7 @@
           inspector.classList.add('hidden');
           inspector.classList.remove('flex');
         }
-        showViewerInfoCard(node);
+        // Intel box removed per user request. Focus smoothly on node!
         return;
       }
 
