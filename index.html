@@ -167,6 +167,24 @@
       margin-top: 1px;
       transition: font-size 0.08s ease;
     }
+    .room-icon {
+      display: inline-block;
+      vertical-align: -1px;
+      font-size: 1.12em;
+      line-height: 1;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+    }
+    .icon-swatch {
+      cursor: pointer;
+      user-select: none;
+      height: 28px;
+    }
+    .icon-swatch:hover {
+      transform: scale(1.08);
+    }
+    .active-icon-swatch {
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+    }
 
     /* Interactive Port Dots on Room Borders */
     .port-wrapper {
@@ -524,6 +542,19 @@
               <input id="room-subtext-input" type="text" placeholder="e.g. C: Ticket / Zanbamon" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-amber-200 focus:outline-none focus:border-amber-500 font-medium">
             </div>
           </div>
+
+          <!-- Room Marker Icon (Card, Chest, DDR, Tamer, etc.) -->
+          <div class="pt-1.5 border-t border-slate-800/80">
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[10px] uppercase text-cyan-400 font-semibold font-mono flex items-center gap-1.5">
+                <span>Room Marker Icon</span>
+              </label>
+              <span id="selected-icon-display" class="text-[10px] text-slate-400 font-mono">None</span>
+            </div>
+            <div id="room-icon-palette" class="grid grid-cols-6 gap-1 bg-slate-950/60 p-1.5 rounded-lg border border-slate-800">
+              <!-- Dynamically populated icon swatches -->
+            </div>
+          </div>
         </div>
 
         <!-- REDIRECT INCOMING ENTRANCE PORT SELECTOR -->
@@ -691,6 +722,9 @@
           <div class="flex items-center gap-1 overflow-x-auto pb-1 shrink-0 no-scrollbar text-[10px]" id="search-filter-pills">
             <button type="button" data-cat="all" class="search-pill active px-2 py-0.5 rounded-full bg-cyan-900/80 border border-cyan-400 text-cyan-200 font-bold shrink-0 transition">
               All
+            </button>
+            <button type="button" data-cat="card" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
+              <span>🎴</span> Cards
             </button>
             <button type="button" data-cat="item" class="search-pill px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-300 shrink-0 transition flex items-center gap-1">
               <span>📦</span> Items
@@ -1316,16 +1350,19 @@
       const sub = (node.subtext || '').toLowerCase();
       const full = lbl + ' ' + sub;
 
-      if (full.includes('chest') || full.includes('item') || full.includes('fang') || full.includes('rod') || full.includes('ticket') || full.includes('canon') || full.includes('charge')) {
+      if (node.icon === '🎴' || full.includes('card') || full.includes('divermon') || full.includes('booster')) {
+        cats.push('card');
+      }
+      if (node.icon === '📦' || full.includes('chest') || full.includes('item') || full.includes('fang') || full.includes('rod') || full.includes('ticket') || full.includes('canon') || full.includes('charge')) {
         cats.push('item');
       }
-      if (full.includes('ddr') || full.includes('digimon') || full.includes('kotemon') || full.includes('patamon') || full.includes('veemon') || full.includes('kumamon')) {
+      if (node.icon === '👾' || full.includes('ddr') || full.includes('digimon') || full.includes('kotemon') || full.includes('patamon') || full.includes('veemon') || full.includes('kumamon')) {
         cats.push('ddr');
       }
-      if (full.includes('tamer') || full.includes('leader') || full.includes('player') || full.includes('trainer')) {
+      if (node.icon === '👤' || full.includes('tamer') || full.includes('leader') || full.includes('player') || full.includes('trainer')) {
         cats.push('tamer');
       }
-      if (node.layoutId === 1 || node.layoutId === 2 || full.includes('park') || full.includes('grave') || full.includes('mine') || full.includes('badland') || full.includes('forest') || full.includes('cape') || full.includes('entry')) {
+      if (node.icon === '🚪' || node.layoutId === 1 || node.layoutId === 2 || full.includes('park') || full.includes('grave') || full.includes('mine') || full.includes('badland') || full.includes('forest') || full.includes('cape') || full.includes('entry')) {
         cats.push('location');
       }
       return cats;
@@ -1384,10 +1421,11 @@
 
         const lbl = (node.label || '').toLowerCase();
         const sub = (node.subtext || '').toLowerCase();
+        const ico = (node.icon || '').toLowerCase();
         const meta = LAYOUT_METAS[node.layoutId];
         const typeName = (meta ? meta.name : '').toLowerCase();
 
-        return lbl.includes(query) || sub.includes(query) || typeName.includes(query) || node.id.toLowerCase().includes(query);
+        return lbl.includes(query) || sub.includes(query) || ico.includes(query) || typeName.includes(query) || node.id.toLowerCase().includes(query);
       });
 
       if (searchResultsBadge) {
@@ -1399,7 +1437,7 @@
           <div class="py-6 text-center text-slate-500 font-mono text-[11px] space-y-1">
             <div class="text-xl">⚠️</div>
             <div>No matching locations found</div>
-            <div class="text-[10px] text-slate-600">Try searching "Venom", "Kumamon", "Chest", or "Park"</div>
+            <div class="text-[10px] text-slate-600">Try searching "Venom", "Kumamon", "Card", or "Park"</div>
           </div>
         `;
         return;
@@ -1411,20 +1449,30 @@
         itemEl.className = 'p-2 rounded-lg bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-cyan-500/70 cursor-pointer transition flex items-center justify-between gap-2 group';
 
         const meta = LAYOUT_METAS[node.layoutId] || LAYOUT_METAS[1];
-        const isChest = (node.subtext && node.subtext.toLowerCase().includes('chest')) || (node.label && node.label.toLowerCase().includes('chest'));
-        const isDDR = (node.subtext && node.subtext.toLowerCase().includes('ddr')) || (node.label && node.label.toLowerCase().includes('ddr'));
+        const fullText = ((node.label || '') + ' ' + (node.subtext || '')).toLowerCase();
+        const isCard = node.icon === '🎴' || fullText.includes('card') || fullText.includes('divermon');
+        const isChest = node.icon === '📦' || fullText.includes('chest');
+        const isDDR = node.icon === '👾' || fullText.includes('ddr');
+        const isTamer = node.icon === '👤' || fullText.includes('tamer');
         const hasPhoto = Boolean(node.image);
 
         // Badge label
         let badgeHTML = '';
-        if (isChest) {
+        if (isCard) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-rose-950/90 border border-rose-500/60 text-[9px] text-rose-300 font-mono">🎴 Card</span>';
+        } else if (isChest) {
           badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-amber-950/90 border border-amber-500/60 text-[9px] text-amber-300 font-mono">📦 Chest</span>';
         } else if (isDDR) {
           badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-purple-950/90 border border-purple-500/60 text-[9px] text-purple-300 font-mono">👾 DDR</span>';
+        } else if (isTamer) {
+          badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-emerald-950/90 border border-emerald-500/60 text-[9px] text-emerald-300 font-mono">👤 Tamer</span>';
         } else if (node.layoutId === 1 || node.layoutId === 2) {
           badgeHTML = '<span class="px-1.5 py-0.2 rounded bg-cyan-950/90 border border-cyan-500/60 text-[9px] text-cyan-300 font-mono">📍 Area</span>';
+        } else if (node.icon) {
+          badgeHTML = `<span class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-[9px] text-cyan-300 font-mono">${node.icon}</span>`;
         }
 
+        const iconPrefix = node.icon ? `<span class="text-sm mr-1 shrink-0">${node.icon}</span>` : '';
         const mainTitle = node.label || node.subtext || `Room ${node.id.slice(-6)}`;
         const secondary = (node.label && node.subtext) ? node.subtext : (meta ? meta.name : '');
 
@@ -1432,9 +1480,10 @@
           <div class="flex items-center gap-2 min-w-0">
             <span class="w-2.5 h-2.5 rounded-full shrink-0 border border-slate-700" style="background-color: ${node.color || '#ffffff'}"></span>
             <div class="min-w-0">
-              <div class="font-medium text-slate-200 group-hover:text-cyan-300 transition truncate text-[11px] flex items-center gap-1.5">
-                <span>${mainTitle}</span>
-                ${hasPhoto ? '<span class="text-[9px] text-cyan-400" title="Includes Screenshot">📸</span>' : ''}
+              <div class="font-medium text-slate-200 group-hover:text-cyan-300 transition truncate text-[11px] flex items-center gap-1">
+                ${iconPrefix}
+                <span class="truncate">${mainTitle}</span>
+                ${hasPhoto ? '<span class="text-[9px] text-cyan-400 shrink-0" title="Includes Screenshot">📸</span>' : ''}
               </div>
               ${secondary ? `<div class="text-[10px] text-slate-400 truncate">${secondary}</div>` : ''}
             </div>
@@ -1701,6 +1750,8 @@
     const roomLayoutSelect = document.getElementById('room-layout-select');
     const roomLabelInput = document.getElementById('room-label-input');
     const roomSubtextInput = document.getElementById('room-subtext-input');
+    const roomIconPalette = document.getElementById('room-icon-palette');
+    const selectedIconDisplay = document.getElementById('selected-icon-display');
     const roomPhotoPreview = document.getElementById('room-photo-preview');
     const roomPhotoImg = document.getElementById('room-photo-img');
     const btnRemovePhoto = document.getElementById('btn-remove-photo');
@@ -1771,6 +1822,71 @@
           s.classList.add('active-swatch');
         } else {
           s.classList.remove('active-swatch');
+        }
+      });
+    }
+
+    // Curated Room Icons for Digimon World 3 (Cards, Chests, DDR, Tamers, Bosses, etc.)
+    const ROOM_ICONS = [
+      { id: '', label: 'None', icon: '🚫', title: 'Clear / No Icon' },
+      { id: 'card', label: 'Card', icon: '🎴', title: 'Card Battle / Divermon / Booster' },
+      { id: 'chest', label: 'Chest', icon: '📦', title: 'Item Chest / Drop' },
+      { id: 'ddr', label: 'DDR', icon: '👾', title: 'DDR / Wild Digimon' },
+      { id: 'tamer', label: 'Tamer', icon: '👤', title: 'Tamer / NPC' },
+      { id: 'boss', label: 'Boss', icon: '⚔️', title: 'Boss Digimon' },
+      { id: 'shop', label: 'Shop', icon: '🛒', title: 'Shop / Vendor' },
+      { id: 'portal', label: 'Portal', icon: '🚪', title: 'Surface Entrance' },
+      { id: 'terminal', label: 'Save', icon: '💾', title: 'Save Terminal' },
+      { id: 'circuit', label: 'Power', icon: '⚡', title: 'Circuit / Switch' },
+      { id: 'key', label: 'Key', icon: '🗝️', title: 'Key Item' },
+      { id: 'star', label: 'Star', icon: '🌟', title: 'Objective / Special' }
+    ];
+
+    function buildRoomIconPaletteUI() {
+      if (!roomIconPalette) return;
+      roomIconPalette.innerHTML = '';
+      ROOM_ICONS.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'icon-swatch p-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500/70 text-sm flex items-center justify-center transition select-none';
+        btn.title = `${item.label} - ${item.title}`;
+        btn.dataset.icon = item.icon === '🚫' ? '' : item.icon;
+        btn.dataset.label = item.label;
+        btn.innerHTML = `<span>${item.icon}</span>`;
+
+        btn.addEventListener('click', () => {
+          if (!state.selectedId) return;
+          const node = state.nodes.find(n => n.id === state.selectedId);
+          if (node) {
+            pushUndoState();
+            const chosen = (item.icon === '🚫' || node.icon === item.icon) ? '' : item.icon;
+            node.icon = chosen;
+            renderNodes();
+            updateRoomIconPaletteUI(chosen);
+            renderSearchResults();
+            triggerAutoSave();
+          }
+        });
+        roomIconPalette.appendChild(btn);
+      });
+    }
+    buildRoomIconPaletteUI();
+
+    function updateRoomIconPaletteUI(currentIcon = '') {
+      if (!selectedIconDisplay || !roomIconPalette) return;
+      const match = ROOM_ICONS.find(item => (item.icon === currentIcon && item.icon !== '🚫')) || ROOM_ICONS[0];
+      selectedIconDisplay.textContent = match.icon === '🚫' ? 'None' : `${match.icon} ${match.label}`;
+      selectedIconDisplay.className = match.icon === '🚫' ? 'text-slate-400 font-normal text-[10px] font-mono' : 'text-cyan-300 font-bold text-[10px] font-mono';
+
+      roomIconPalette.querySelectorAll('.icon-swatch').forEach(b => {
+        const iconVal = b.dataset.icon;
+        const isActive = (iconVal === (currentIcon || ''));
+        if (isActive) {
+          b.classList.add('active-icon-swatch', 'bg-cyan-950', 'border-cyan-400', 'ring-1', 'ring-cyan-400');
+          b.classList.remove('bg-slate-800', 'border-slate-700');
+        } else {
+          b.classList.remove('active-icon-swatch', 'bg-cyan-950', 'border-cyan-400', 'ring-1', 'ring-cyan-400');
+          b.classList.add('bg-slate-800', 'border-slate-700');
         }
       });
     }
@@ -1949,34 +2065,48 @@
           `;
         });
 
-        // DEAD END ROOM: FLOATING CALLOUT NOTE BESIDE ROOM
+        // DEAD END ROOM: ONLY SHOW FLOATING CALLOUT IF THERE IS AN ITEM / DDR / TAMER / NOTE / ICON
         if (meta.isDeadEnd) {
-          const hasContent = Boolean(node.label || node.subtext);
-          const titleText = node.label || 'Dead End';
-          const noteText = node.subtext || '';
+          const hasCustomLabel = Boolean(node.label && node.label.trim() && node.label.trim().toLowerCase() !== 'dead end');
+          const hasSubtext = Boolean(node.subtext && node.subtext.trim());
+          const hasIcon = Boolean(node.icon && node.icon.trim());
+          const hasIntel = hasCustomLabel || hasSubtext || hasIcon;
+
+          let deadEndBadgeHTML = '';
+          if (hasIntel) {
+            const titleText = node.label || (node.icon ? 'Intel' : 'Dead End');
+            const noteText = node.subtext || '';
+            const isDDR = (noteText + ' ' + titleText).toLowerCase().includes('ddr');
+            const isCard = (noteText + ' ' + titleText).toLowerCase().includes('card') || (noteText + ' ' + titleText).toLowerCase().includes('divermon');
+            const defaultIcon = isCard ? '🎴' : (isDDR ? '👾' : '📦');
+            const displayIcon = node.icon || defaultIcon;
+
+            deadEndBadgeHTML = `
+              <div class="deadend-note-badge absolute left-full ml-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 rounded-md border shadow-xl whitespace-nowrap z-25 pointer-events-auto transition-all bg-amber-950/95 border-amber-500/80 text-amber-200">
+                <div class="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-amber-500/80"></div>
+                <span class="text-[12px]">${displayIcon}</span>
+                <div class="flex flex-col text-left leading-tight">
+                  <span class="font-bold text-[10px] text-amber-100 font-sans">${titleText}</span>
+                  ${noteText ? `<span class="text-[9px] text-amber-300 font-mono font-bold">${noteText}</span>` : ''}
+                </div>
+              </div>
+            `;
+          }
 
           el.innerHTML = `
             ${photoBadge}
             ${portsHTML}
             <span class="text-[9px] text-cyan-400 font-bold font-mono">✕</span>
-            <div class="deadend-note-badge absolute left-full ml-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 rounded-md border shadow-xl whitespace-nowrap z-25 pointer-events-auto transition-all ${
-              hasContent ? 'bg-amber-950/95 border-amber-500/80 text-amber-200' : 'bg-slate-900/90 border-slate-700 text-slate-400'
-            }">
-              <div class="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent ${hasContent ? 'border-r-amber-500/80' : 'border-r-slate-700'}"></div>
-              <span class="text-[11px]">${hasContent ? '📦' : '📝'}</span>
-              <div class="flex flex-col text-left leading-tight">
-                <span class="font-bold text-[10px] ${hasContent ? 'text-amber-100' : 'text-slate-300'} font-sans">${titleText}</span>
-                ${noteText ? `<span class="text-[9px] text-amber-300 font-mono font-bold">${noteText}</span>` : ''}
-              </div>
-            </div>
+            ${deadEndBadgeHTML}
           `;
         } else {
           // NORMAL ROOM: AUTO-RESIZE WORDS FITTED TO BOX
+          const iconHTML = node.icon ? `<span class="room-icon mr-1">${node.icon}</span>` : '';
           el.innerHTML = `
             ${photoBadge}
             ${portsHTML}
             <div class="node-text-container">
-              <div class="node-title">${node.label || meta.name}</div>
+              <div class="node-title">${iconHTML}${node.label || meta.name}</div>
               ${node.subtext ? `<div class="node-subtext">${node.subtext}</div>` : ''}
             </div>
           `;
@@ -2372,6 +2502,7 @@
       const ports = LAYOUT_PORTS[node.layoutId] || [];
 
       updateColorPaletteUI(node.color || '#ffffff');
+      updateRoomIconPaletteUI(node.icon || '');
       roomLayoutSelect.value = node.layoutId;
       roomLabelInput.value = node.label || '';
       roomSubtextInput.value = node.subtext || '';
@@ -2577,6 +2708,7 @@
       if (node) {
         node.label = roomLabelInput.value;
         renderNodes();
+        renderSearchResults();
         triggerAutoSave();
       }
     });
@@ -2586,6 +2718,7 @@
       if (node) {
         node.subtext = roomSubtextInput.value;
         renderNodes();
+        renderSearchResults();
         triggerAutoSave();
       }
     });
@@ -2634,6 +2767,7 @@
         label: label || (meta.isDeadEnd ? '' : meta.name),
         subtext,
         color: '#ffffff',
+        icon: '',
         x,
         y,
         w: meta.w,
