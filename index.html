@@ -304,7 +304,7 @@
     }
 
   </style>
-  <script src="map_data.js"></script>
+  <script src="map_data.js?v=6"></script>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
@@ -1678,7 +1678,8 @@
         const lightCopy = {
           nodes: data.nodes.map(n => ({ ...n, image: n.image && n.image.length > 60000 ? null : n.image })),
           edges: data.edges,
-          view: data.view
+          view: data.view,
+          exportedAt: data.exportedAt || window.DW3_DEFAULT_MAP?.exportedAt
         };
         localStorage.setItem('dw3_draft_backup', JSON.stringify(lightCopy));
       } catch (e) {}
@@ -1710,7 +1711,8 @@
         await saveDraftToStorage({
           nodes: state.nodes,
           edges: state.edges,
-          view: state.view
+          view: state.view,
+          exportedAt: state.exportedAt || window.DW3_DEFAULT_MAP?.exportedAt
         });
         updateSaveBadge('saved');
       }, 300);
@@ -2952,9 +2954,14 @@
       if (window.DW3_DEFAULT_MAP && Array.isArray(window.DW3_DEFAULT_MAP.nodes)) {
         state.nodes = JSON.parse(JSON.stringify(window.DW3_DEFAULT_MAP.nodes));
         state.edges = JSON.parse(JSON.stringify(window.DW3_DEFAULT_MAP.edges || []));
+        state.exportedAt = window.DW3_DEFAULT_MAP.exportedAt || '2026-11-18T02:45:51.523Z';
         if (window.DW3_DEFAULT_MAP.view) {
           state.view = { ...window.DW3_DEFAULT_MAP.view };
+        } else {
+          state.view = { x: 120, y: 40, scale: 0.65 };
         }
+        renderAll();
+        renderSearchResults();
         console.log(`Loaded master map: ${state.nodes.length} rooms, ${state.edges.length} paths`);
         return;
       }
@@ -2993,13 +3000,28 @@
     // Startup
     async function startApp() {
       const saved = await loadDraftFromStorage();
-      if (window.DW3_DEFAULT_MAP && Array.isArray(window.DW3_DEFAULT_MAP.nodes) && (!saved || !saved.nodes || saved.nodes.length < window.DW3_DEFAULT_MAP.nodes.length)) {
+      const masterNodes = window.DW3_DEFAULT_MAP?.nodes;
+      const masterExportedAt = window.DW3_DEFAULT_MAP?.exportedAt || '2026-11-18T02:45:51.523Z';
+      const masterNodeCount = Array.isArray(masterNodes) ? masterNodes.length : 0;
+
+      // Automatically load latest master map if no saved draft, or if master map has different node count or newer exportedAt timestamp
+      const shouldLoadMaster = Boolean(
+        masterNodeCount > 0 && (
+          !saved ||
+          !saved.nodes ||
+          saved.nodes.length !== masterNodeCount ||
+          saved.exportedAt !== masterExportedAt
+        )
+      );
+
+      if (shouldLoadMaster) {
         loadSampleMap();
         triggerAutoSave();
         updateSaveBadge('saved');
       } else if (saved && saved.nodes && saved.nodes.length > 0) {
         state.nodes = saved.nodes;
         state.edges = saved.edges || [];
+        state.exportedAt = saved.exportedAt || masterExportedAt;
         if (saved.view) state.view = saved.view;
         updateSaveBadge('saved');
       } else {
